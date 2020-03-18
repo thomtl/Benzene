@@ -1,0 +1,1 @@
+executable('benzene-test', 'main.cpp', dependencies: benzene_dep)
