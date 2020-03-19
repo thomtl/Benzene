@@ -39,6 +39,24 @@ namespace benzene::vulkan {
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
 
+    class physical_device {
+        public:
+        physical_device(vk::PhysicalDevice device);
+
+        std::optional<uint32_t> has_queue_type(vk::QueueFlagBits flag);
+        int64_t score;
+        bool suitability;
+
+        const vk::PhysicalDevice& handle() const {
+            return device;
+        }
+        private:
+        int64_t calculate_score();
+        bool is_suitable();
+        vk::PhysicalDevice device;
+        std::vector<vk::QueueFamilyProperties> queue_families;
+    };
+
     class backend : public IBackend {
         public:
         backend();
@@ -52,6 +70,8 @@ namespace benzene::vulkan {
         std::vector<const char*> get_extensions();
 
         bool check_validation_layer_support();
+
+        physical_device choose_physical_device();
 
         vk::Instance instance;
         vk::DebugUtilsMessengerEXT debug_messenger;

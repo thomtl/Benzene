@@ -138,6 +138,14 @@ namespace format
 	};
 
 	template<>
+	struct formatter<char*> {
+		template<typename OutputIt>
+		static void format(format_output_it<OutputIt>& it, [[maybe_unused]] format_args args, char* item){
+			formatter<const char*>::format(it, args, item);
+		}
+	};
+
+	template<>
 	struct formatter<std::string> {
 		template<typename OutputIt>
 		static void format(format_output_it<OutputIt>& it, [[maybe_unused]] format_args args, std::string item){

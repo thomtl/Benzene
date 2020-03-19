@@ -2,6 +2,8 @@
 
 using namespace benzene::vulkan;
 
+#pragma region backend
+
 backend::backend(){
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
@@ -19,6 +21,8 @@ backend::backend(){
         for(const auto& extension : extensions)
             print("\t - {} v{}\n", extension.extensionName, spec_version{extension.specVersion});
     }
+
+    
 
     vk::ApplicationInfo info{};
     info.pApplicationName = "Application";
@@ -50,6 +54,8 @@ backend::backend(){
 
     if constexpr (enable_validation)
         this->init_debug_messenger();
+
+    this->choose_physical_device();
 }
 
 backend::~backend(){
@@ -112,3 +118,86 @@ bool backend::check_validation_layer_support(){
     }
     return true;
 }
+
+physical_device backend::choose_physical_device(){
+    uint32_t n_devices = 0;
+    vkEnumeratePhysicalDevices(this->instance, &n_devices, nullptr);
+    if(n_devices == 0)
+        throw std::runtime_error("Couldn't find any GPUs with vulkan support");
+    
+    std::vector<vk::PhysicalDevice> physical_devices{n_devices};
+    vkEnumeratePhysicalDevices(this->instance, &n_devices, (VkPhysicalDevice*)physical_devices.data());
+    
+    std::vector<physical_device> devices;
+    for(const auto& dev: physical_devices){
+        physical_device device{dev};
+
+        if(device.suitability)
+            devices.push_back(std::move(device)); // Make sure only suitable devices are pushed
+    }
+
+    std::sort(devices.begin(), devices.end(), [](auto& a, auto& b){
+        return a.score < b.score;
+    });
+
+    if constexpr (debug) {
+        print("vulkan: Physical GPUs: \n");
+        for(const auto& gpu : devices)
+            print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {}] -> Score {}\n", vk::to_string(gpu.handle().getProperties().deviceType), gpu.handle().getProperties().deviceName, gpu.handle().getProperties().deviceID, gpu.handle().getProperties().vendorID, spec_version{gpu.handle().getProperties().driverVersion}, gpu.score);
+    }
+
+    return devices[0]; // Higest rated device
+}
+
+#pragma endregion
+
+#pragma region physical_device
+
+physical_device::physical_device(vk::PhysicalDevice device): score{-1}, suitability{false}, device{device}{
+    this->score = this->calculate_score();
+    this->queue_families = this->device.getQueueFamilyProperties();
+    this->suitability = this->is_suitable();
+}
+
+int64_t physical_device::calculate_score(){
+    const auto& properties = this->device.getProperties();
+    const auto& features = this->device.getFeatures();
+
+    int64_t score = 0;
+        
+    switch(properties.deviceType){
+        case vk::PhysicalDeviceType::eDiscreteGpu:
+            score += 1000;
+            break;
+        case vk::PhysicalDeviceType::eIntegratedGpu:
+            score += 500;
+            break;
+        default:
+            break;
+    }
+
+    score += properties.limits.maxImageDimension2D;
+
+    if(!features.geometryShader)
+        score = -1; // Invalid
+
+    return score;
+}
+
+bool physical_device::is_suitable(){
+    if(!this->has_queue_type(vk::QueueFlagBits::eGraphics).has_value())
+        return false;
+
+    return true;
+}
+
+std::optional<uint32_t> physical_device::has_queue_type(vk::QueueFlagBits flag){
+    for(uint32_t i = 0; i < this->queue_families.size(); i++)
+        if(this->queue_families[i].queueFlags & flag)
+            return i;
+
+    return {};
+}
+
+
+#pragma endregion
