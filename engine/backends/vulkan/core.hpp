@@ -39,63 +39,41 @@ namespace benzene::vulkan {
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
 
-    class physical_device {
-        public:
-        physical_device(vk::PhysicalDevice device);
-
-        std::optional<uint32_t> get_queue_index(vk::QueueFlagBits flag);
-        int64_t score;
-        bool suitability;
-
-        const vk::PhysicalDevice& handle() const {
-            return device;
-        }
-        private:
-        int64_t calculate_score();
-        bool is_suitable();
-        vk::PhysicalDevice device;
-        std::vector<vk::QueueFamilyProperties> queue_families;
-    };
-
-    class logical_device {
-        public:
-        logical_device(): device{nullptr} {};
-        logical_device(physical_device& physical_dev);
-        ~logical_device();
-
-        logical_device& operator=(logical_device&& other){
-            this->device = other.device;
-            other.device = vk::Device{nullptr};
-            return *this;
-        }
-
-        vk::Queue graphics_queue;
-
-        logical_device(logical_device&& other) = delete;
-        logical_device& operator=(const logical_device& other) = delete;
-        logical_device(const logical_device& other) = delete;
-        private:
-        vk::Device device;
-    };
-
     class backend : public IBackend {
         public:
-        backend();
+        backend(const char* application_name, GLFWwindow* window);
         ~backend();
 
         private:
         static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
         vk::DebugUtilsMessengerCreateInfoEXT make_debug_messenger_create_info();
         void init_debug_messenger();
+        void init_physical_device();
+        void init_logical_device();
 
         std::vector<const char*> get_extensions();
 
         bool check_validation_layer_support();
 
-        physical_device choose_physical_device();
+        template<typename F>
+        std::optional<uint32_t> get_queue_index(vk::PhysicalDevice dev, F functor){
+            auto queue_families = dev.getQueueFamilyProperties();
+            for(uint32_t i = 0; i < queue_families.size(); i++)
+                if(functor(queue_families[i], i))
+                    return i;
 
-        logical_device device;
-        vk::Instance instance;
+            return {};
+        }
+        
+
         vk::DebugUtilsMessengerEXT debug_messenger;
+        vk::Instance instance;
+        vk::SurfaceKHR surface;
+        vk::PhysicalDevice physical_device;
+        vk::Device logical_device;
+
+
+        uint32_t graphics_queue_id, presentation_queue_id;
+        vk::Queue graphics_queue, presentation_queue;
     };
 } // namespace benzene::vulkan

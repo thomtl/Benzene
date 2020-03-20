@@ -4,7 +4,7 @@
 
 int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 {
-    benzene::instance engine{800, 600};
+    benzene::instance engine{"Benzene-test", 800, 600};
 
     engine.run([]{});
     return 0;

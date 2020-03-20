@@ -1,10 +1,12 @@
 #include "core.hpp"
 
+#include <set>
+
 using namespace benzene::vulkan;
 
 #pragma region backend
 
-backend::backend(){
+backend::backend(const char* application_name, GLFWwindow* window) {
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
 
@@ -23,7 +25,7 @@ backend::backend(){
     }
 
     vk::ApplicationInfo info{};
-    info.pApplicationName = "Application";
+    info.pApplicationName = application_name;
     info.setApplicationVersion(VK_MAKE_VERSION(1, 0, 0));
     info.pEngineName = "Benzene";
     info.setEngineVersion(VK_MAKE_VERSION(1, 0, 0));
@@ -48,20 +50,25 @@ backend::backend(){
     if(vk::createInstance(&create_info, nullptr, &this->instance) != vk::Result::eSuccess)
         throw std::runtime_error("Couldn't make instance");
             
-    print("vulkan: Initialized Vulkan with {} extension(s) and {} validation layer(s)\n", create_info.enabledExtensionCount, create_info.enabledLayerCount);
+    print("vulkan: Initialized instance with {} extension(s) and {} validation layer(s)\n", create_info.enabledExtensionCount, create_info.enabledLayerCount);
 
     if constexpr (enable_validation)
         this->init_debug_messenger();
 
-    auto phys = this->choose_physical_device();
-    this->device = logical_device{phys};
+    if((vk::Result)glfwCreateWindowSurface(this->instance, window, nullptr, (VkSurfaceKHR*)&this->surface) != vk::Result::eSuccess)
+        throw std::runtime_error("Couldn't create window surface");
+
+    this->init_physical_device();
+    this->init_logical_device();
+
+    print("vulkan: Initialized Vulkan backend\n");
 }
 
 backend::~backend(){
-    this->device.~logical_device();
+    this->logical_device.destroy();
     if constexpr (enable_validation)
         extra_api::DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
-
+    this->instance.destroySurfaceKHR(this->surface);
     this->instance.destroy();
 }
 
@@ -92,6 +99,52 @@ void backend::init_debug_messenger(){
         throw std::runtime_error("Failed to create debug_messenger");
 }
 
+void backend::init_logical_device(){
+    auto graphics_queue_id = this->get_queue_index(this->physical_device, [](const auto& family, [[maybe_unused]] const auto i){
+        return family.queueFlags & vk::QueueFlagBits::eGraphics;
+    });
+    if(!graphics_queue_id)
+        throw std::runtime_error("Didn't find graphics queue id");
+    this->graphics_queue_id = *graphics_queue_id;
+
+    auto presentation_queue_id = this->get_queue_index(this->physical_device, [this]([[maybe_unused]] const auto& family, const auto i){
+        return this->physical_device.getSurfaceSupportKHR(i, this->surface);
+    });
+    if(!graphics_queue_id)
+        throw std::runtime_error("Didn't find graphics queue id");
+    this->presentation_queue_id = *presentation_queue_id;
+
+    std::set<uint32_t> unique_queue_ids = {this->graphics_queue_id, this->presentation_queue_id};
+    std::vector<vk::DeviceQueueCreateInfo> queue_creation_info{};
+
+    float priority = 1.0f;
+    for(const auto& queue_id : unique_queue_ids){
+        vk::DeviceQueueCreateInfo queue_create_info{};
+        queue_create_info.queueFamilyIndex = queue_id;
+        queue_create_info.queueCount = 1;
+        queue_create_info.pQueuePriorities = &priority;
+
+        queue_creation_info.push_back(queue_create_info);
+    }
+
+    vk::PhysicalDeviceFeatures device_features{};
+    
+    vk::DeviceCreateInfo create_info{};
+    create_info.pQueueCreateInfos = queue_creation_info.data();
+    create_info.queueCreateInfoCount = queue_creation_info.size();
+
+    create_info.pEnabledFeatures = &device_features;
+
+    if constexpr (enable_validation) {
+        create_info.enabledLayerCount = validation_layers.size();
+        create_info.ppEnabledLayerNames = validation_layers.data();
+    }
+
+    this->logical_device = this->physical_device.createDevice(create_info);
+    this->graphics_queue = this->logical_device.getQueue(this->graphics_queue_id, 0); // We only have 1 graphics queue
+    this->presentation_queue = this->logical_device.getQueue(this->presentation_queue_id, 0); // We only have 1 graphics queue
+}
+
 std::vector<const char*> backend::get_extensions(){
     uint32_t glfw_extension_count = 0;
     const auto** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
@@ -119,118 +172,70 @@ bool backend::check_validation_layer_support(){
     return true;
 }
 
-physical_device backend::choose_physical_device(){
+void backend::init_physical_device(){
     std::vector<vk::PhysicalDevice> physical_devices = this->instance.enumeratePhysicalDevices();
     if(physical_devices.size() == 0)
         throw std::runtime_error("Couldn't find any GPUs with vulkan support");
     
-    std::vector<physical_device> devices;
+    std::vector<vk::PhysicalDevice> suitable_devices;
     for(const auto& dev: physical_devices){
-        physical_device device{dev};
+        auto is_suitable = [this, dev]() -> bool {
+            if(!this->get_queue_index(dev, [](const auto& family, [[maybe_unused]] const auto i){
+                return family.queueFlags & vk::QueueFlagBits::eGraphics;
+            }).has_value())
+                return false; // Make sure we have a graphics queue
 
-        if(device.suitability)
-            devices.push_back(std::move(device)); // Make sure only suitable devices are pushed
+            if(!this->get_queue_index(dev, [this, &dev]([[maybe_unused]] const auto& family, const auto i){
+                return dev.getSurfaceSupportKHR(i, this->surface);
+            }).has_value())
+                return false; // Make sure we have a presentation queue
+
+            return true;
+        };
+        
+        if(is_suitable())
+        suitable_devices.push_back(std::move(dev)); // Make sure only suitable devices are pushed
     }
 
-    std::sort(devices.begin(), devices.end(), [](auto& a, auto& b){
-        return a.score < b.score;
+    if(suitable_devices.size() == 0)
+        throw std::runtime_error("Couldn't find any GPUs with suitable vulkan support");
+
+    auto calculate_score = [](const auto& dev) -> int64_t {
+        const auto& properties = dev.getProperties();
+        const auto& features = dev.getFeatures();
+
+        int64_t score = 0;
+        
+        switch(properties.deviceType){
+            case vk::PhysicalDeviceType::eDiscreteGpu:
+                score += 1000;
+                break;
+            case vk::PhysicalDeviceType::eIntegratedGpu:
+                score += 500;
+                break;
+            default:
+                break;
+        }
+
+        score += properties.limits.maxImageDimension2D;
+
+        if(!features.geometryShader)
+            score = -1; // Invalid
+
+        return score;
+    };
+
+    std::sort(suitable_devices.begin(), suitable_devices.end(), [calculate_score](auto& a, auto& b){
+        return calculate_score(a) < calculate_score(b);
     });
 
     if constexpr (debug) {
         print("vulkan: Physical GPUs: \n");
-        for(const auto& gpu : devices)
-            print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {}] -> Score {}\n", vk::to_string(gpu.handle().getProperties().deviceType), gpu.handle().getProperties().deviceName, gpu.handle().getProperties().deviceID, gpu.handle().getProperties().vendorID, spec_version{gpu.handle().getProperties().driverVersion}, gpu.score);
+        for(const auto& gpu : suitable_devices)
+            print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {}] -> Score {}\n", vk::to_string(gpu.getProperties().deviceType), gpu.getProperties().deviceName, gpu.getProperties().deviceID, gpu.getProperties().vendorID, spec_version{gpu.getProperties().driverVersion}, calculate_score(gpu));
     }
 
-    return devices[0]; // Higest rated device
-}
-
-#pragma endregion
-
-#pragma region physical_device
-
-physical_device::physical_device(vk::PhysicalDevice device): score{-1}, suitability{false}, device{device}{
-    this->score = this->calculate_score();
-    this->queue_families = this->device.getQueueFamilyProperties();
-    this->suitability = this->is_suitable();
-}
-
-int64_t physical_device::calculate_score(){
-    const auto& properties = this->device.getProperties();
-    const auto& features = this->device.getFeatures();
-
-    int64_t score = 0;
-        
-    switch(properties.deviceType){
-        case vk::PhysicalDeviceType::eDiscreteGpu:
-            score += 1000;
-            break;
-        case vk::PhysicalDeviceType::eIntegratedGpu:
-            score += 500;
-            break;
-        default:
-            break;
-    }
-
-    score += properties.limits.maxImageDimension2D;
-
-    if(!features.geometryShader)
-        score = -1; // Invalid
-
-    return score;
-}
-
-bool physical_device::is_suitable(){
-    if(!this->get_queue_index(vk::QueueFlagBits::eGraphics).has_value())
-        return false;
-
-    return true;
-}
-
-std::optional<uint32_t> physical_device::get_queue_index(vk::QueueFlagBits flag){
-    for(uint32_t i = 0; i < this->queue_families.size(); i++)
-        if(this->queue_families[i].queueFlags & flag)
-            return i;
-
-    return {};
-}
-
-#pragma endregion
-
-#pragma region logical_device
-
-logical_device::logical_device(physical_device& physical_dev) {
-    auto graphics_queue_id = physical_dev.get_queue_index(vk::QueueFlagBits::eGraphics);
-    if(!graphics_queue_id)
-        throw std::runtime_error("Didn't find graphics queue id");
-
-    vk::DeviceQueueCreateInfo queue_create_info{};
-    queue_create_info.queueFamilyIndex = *graphics_queue_id;
-    queue_create_info.queueCount = 1;
-    float priority = 1.0f;
-    queue_create_info.pQueuePriorities = &priority;
-
-    vk::PhysicalDeviceFeatures device_features{};
-    
-    vk::DeviceCreateInfo create_info{};
-    create_info.pQueueCreateInfos = &queue_create_info;
-    create_info.queueCreateInfoCount = 1;
-
-    create_info.pEnabledFeatures = &device_features;
-
-    if constexpr (enable_validation) {
-        create_info.enabledLayerCount = validation_layers.size();
-        create_info.ppEnabledLayerNames = validation_layers.data();
-    }
-
-    this->device = physical_dev.handle().createDevice(create_info);
-
-    this->graphics_queue = this->device.getQueue(*graphics_queue_id, 0); // We only have 1 graphics queue
-}
-
-logical_device::~logical_device(){
-    this->device.destroy();
-    this->device = vk::Device{nullptr}; // Assign faux state so it won't segfault when called for the second time
+    this->physical_device = suitable_devices[0]; // Higest rated device
 }
 
 #pragma endregion

@@ -5,6 +5,8 @@
 
 #include <functional>
 #include <memory>
+#include <string_view>
+
 
 namespace benzene
 {
@@ -15,7 +17,7 @@ namespace benzene
 
     class instance {
         public:
-        instance(size_t width, size_t height);
+        instance(const char* application_name, size_t width, size_t height);
         ~instance();
 
         void run(std::function<void(void)> functor);
