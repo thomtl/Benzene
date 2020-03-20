@@ -6,7 +6,7 @@ using namespace benzene::vulkan;
 
 #pragma region backend
 
-backend::backend(const char* application_name, GLFWwindow* window) {
+backend::backend(size_t width, size_t height, const char* application_name, GLFWwindow* window) {
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
 
@@ -46,7 +46,6 @@ backend::backend(const char* application_name, GLFWwindow* window) {
         create_info.pNext = &instance_debug_info;
     }
 
-
     if(vk::createInstance(&create_info, nullptr, &this->instance) != vk::Result::eSuccess)
         throw std::runtime_error("Couldn't make instance");
             
@@ -61,10 +60,14 @@ backend::backend(const char* application_name, GLFWwindow* window) {
     this->init_physical_device();
     this->init_logical_device();
 
+    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, width, height};
+
+
     print("vulkan: Initialized Vulkan backend\n");
 }
 
 backend::~backend(){
+    this->swapchain.clean();
     this->logical_device.destroy();
     if constexpr (enable_validation)
         extra_api::DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
@@ -135,6 +138,9 @@ void backend::init_logical_device(){
 
     create_info.pEnabledFeatures = &device_features;
 
+    create_info.enabledExtensionCount = required_device_extensions.size();
+    create_info.ppEnabledExtensionNames = required_device_extensions.data();
+
     if constexpr (enable_validation) {
         create_info.enabledLayerCount = validation_layers.size();
         create_info.ppEnabledLayerNames = validation_layers.data();
@@ -190,11 +196,22 @@ void backend::init_physical_device(){
             }).has_value())
                 return false; // Make sure we have a presentation queue
 
+            auto extensions = dev.enumerateDeviceExtensionProperties();
+            for(const auto* a : required_device_extensions){
+               bool found = false;
+                for(const auto& b : extensions)
+                    if(strcmp(a, b.extensionName) == 0)
+                        found = true;
+
+                if(!found)
+                    return false;
+            }
+
             return true;
         };
         
         if(is_suitable())
-        suitable_devices.push_back(std::move(dev)); // Make sure only suitable devices are pushed
+            suitable_devices.push_back(std::move(dev)); // Make sure only suitable devices are pushed
     }
 
     if(suitable_devices.size() == 0)

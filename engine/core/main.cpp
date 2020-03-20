@@ -15,7 +15,7 @@ benzene::instance::instance(const char* name, size_t width, size_t height): widt
     this->window = glfwCreateWindow(this->width, this->height, name, nullptr, nullptr);
 
     
-    this->backend = std::make_unique<vulkan::backend>(name, this->window);
+    this->backend = std::make_unique<vulkan::backend>(width, height, name, this->window);
 }
 
 void benzene::instance::run(std::function<void(void)> functor){

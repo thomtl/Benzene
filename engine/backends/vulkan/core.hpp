@@ -8,10 +8,13 @@
 #include <stdexcept>
 #include <vector>
 #include <array>
+#include <algorithm>
 
 #include <benzene/benzene.hpp>
 #include "../../core/format.hpp"
 #include "extra_api.hpp"
+#include "swap_chain.hpp"
+
 namespace benzene::vulkan
 {
     struct spec_version {
@@ -33,15 +36,21 @@ struct format::formatter<benzene::vulkan::spec_version> {
 };
 
 namespace benzene::vulkan {
+    constexpr std::array<const char*, 1> required_device_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    };
+
     constexpr std::array<const char*, 1> validation_layers = {
         "VK_LAYER_KHRONOS_validation"
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
 
+    
+
     class backend : public IBackend {
         public:
-        backend(const char* application_name, GLFWwindow* window);
+        backend(size_t width, size_t height, const char* application_name, GLFWwindow* window);
         ~backend();
 
         private:
@@ -71,6 +80,8 @@ namespace benzene::vulkan {
         vk::SurfaceKHR surface;
         vk::PhysicalDevice physical_device;
         vk::Device logical_device;
+
+        swap_chain swapchain;
 
 
         uint32_t graphics_queue_id, presentation_queue_id;
