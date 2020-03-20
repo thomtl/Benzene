@@ -56,9 +56,10 @@ namespace benzene::vulkan
         swap_chain(vk::Device* dev, vk::PhysicalDevice* physical_dev, vk::SurfaceKHR* surface, uint32_t graphics_queue_id, uint32_t presentation_queue_id, size_t window_width, size_t window_height): dev{dev} {
             swapchain_support_details details{physical_dev, surface};
 
-            auto format = details.choose_format();
+            auto surface_format = details.choose_format();
+            this->format = surface_format.format;
             auto mode = details.choose_present_mode();
-            auto extent = details.choose_swap_extent(window_width, window_height);
+            this->extent = details.choose_swap_extent(window_width, window_height);
 
             auto image_count = details.cap.minImageCount + 1;
             if(details.cap.maxImageCount > 0 && image_count > details.cap.maxImageCount)
@@ -67,8 +68,8 @@ namespace benzene::vulkan
             vk::SwapchainCreateInfoKHR create_info{};
             create_info.minImageCount = image_count;
             create_info.surface = *surface;
-            create_info.imageFormat = format.format;
-            create_info.imageColorSpace = format.colorSpace;
+            create_info.imageFormat = format;
+            create_info.imageColorSpace = surface_format.colorSpace;
             create_info.imageExtent = extent;
             create_info.imageArrayLayers = 1;
             create_info.imageUsage = vk::ImageUsageFlagBits::eColorAttachment;
@@ -92,9 +93,32 @@ namespace benzene::vulkan
             this->chain = dev->createSwapchainKHR(create_info);
 
             this->images = dev->getSwapchainImagesKHR(chain);
+
+            this->image_views = std::vector<vk::ImageView>{};
+            for(size_t i = 0; i < images.size(); i++){
+                vk::ImageViewCreateInfo create_info{};
+                create_info.image = images[i];
+                create_info.viewType = vk::ImageViewType::e2D;
+                create_info.format = this->get_format();
+                create_info.components.r = vk::ComponentSwizzle::eIdentity;
+                create_info.components.g = vk::ComponentSwizzle::eIdentity;
+                create_info.components.b = vk::ComponentSwizzle::eIdentity;
+                create_info.components.a = vk::ComponentSwizzle::eIdentity;
+
+                create_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
+                create_info.subresourceRange.baseMipLevel = 0;
+                create_info.subresourceRange.levelCount = 1;
+                create_info.subresourceRange.baseArrayLayer = 0;
+                create_info.subresourceRange.layerCount = 1;
+
+                this->image_views.push_back(this->dev->createImageView(create_info));
+            }
         }
 
         void clean(){
+            for(auto& view : image_views)
+                dev->destroyImageView(view);
+
             dev->destroySwapchainKHR(this->chain);
         }
 
@@ -110,8 +134,13 @@ namespace benzene::vulkan
             return images;
         }
 
+        std::vector<vk::ImageView>& get_image_views(){
+            return image_views;
+        }
+
 
         private:
+        std::vector<vk::ImageView> image_views;
         std::vector<vk::Image> images;
         vk::Format format;
         vk::Extent2D extent;

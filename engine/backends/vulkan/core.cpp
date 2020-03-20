@@ -62,6 +62,9 @@ backend::backend(size_t width, size_t height, const char* application_name, GLFW
 
     this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, width, height};
 
+    
+
+
 
     print("vulkan: Initialized Vulkan backend\n");
 }
