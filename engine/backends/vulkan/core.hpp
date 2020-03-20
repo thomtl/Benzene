@@ -43,7 +43,7 @@ namespace benzene::vulkan {
         public:
         physical_device(vk::PhysicalDevice device);
 
-        std::optional<uint32_t> has_queue_type(vk::QueueFlagBits flag);
+        std::optional<uint32_t> get_queue_index(vk::QueueFlagBits flag);
         int64_t score;
         bool suitability;
 
@@ -55,6 +55,27 @@ namespace benzene::vulkan {
         bool is_suitable();
         vk::PhysicalDevice device;
         std::vector<vk::QueueFamilyProperties> queue_families;
+    };
+
+    class logical_device {
+        public:
+        logical_device(): device{nullptr} {};
+        logical_device(physical_device& physical_dev);
+        ~logical_device();
+
+        logical_device& operator=(logical_device&& other){
+            this->device = other.device;
+            other.device = vk::Device{nullptr};
+            return *this;
+        }
+
+        vk::Queue graphics_queue;
+
+        logical_device(logical_device&& other) = delete;
+        logical_device& operator=(const logical_device& other) = delete;
+        logical_device(const logical_device& other) = delete;
+        private:
+        vk::Device device;
     };
 
     class backend : public IBackend {
@@ -73,6 +94,7 @@ namespace benzene::vulkan {
 
         physical_device choose_physical_device();
 
+        logical_device device;
         vk::Instance instance;
         vk::DebugUtilsMessengerEXT debug_messenger;
     };
