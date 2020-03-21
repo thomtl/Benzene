@@ -53,7 +53,7 @@ namespace benzene::vulkan {
 
     class backend : public IBackend {
         public:
-        backend(size_t width, size_t height, const char* application_name, GLFWwindow* window);
+        backend(const char* application_name, GLFWwindow* window);
         ~backend();
 
         void frame_update();
@@ -70,6 +70,10 @@ namespace benzene::vulkan {
 
         bool check_validation_layer_support();
 
+        void framebuffer_resize_callback([[maybe_unused]] int width, [[maybe_unused]] int height){
+            this->framebuffer_resized = true;
+        }
+
         template<typename F>
         std::optional<uint32_t> get_queue_index(vk::PhysicalDevice dev, F functor){
             auto queue_families = dev.getQueueFamilyProperties();
@@ -80,6 +84,12 @@ namespace benzene::vulkan {
             return {};
         }
 
+        void cleanup_renderer();
+        void create_renderer();
+        void recreate_renderer();
+
+        GLFWwindow* window;
+        bool framebuffer_resized;
         size_t current_frame;
         std::vector<vk::Semaphore> image_available, render_finished;
         std::vector<vk::Fence> in_flight_fences, images_in_flight;

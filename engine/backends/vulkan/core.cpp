@@ -6,7 +6,7 @@ using namespace benzene::vulkan;
 
 #pragma region backend
 
-backend::backend(size_t width, size_t height, const char* application_name, GLFWwindow* window): current_frame{0} {
+backend::backend(const char* application_name, GLFWwindow* window): window{window}, current_frame{0} {
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
 
@@ -60,62 +60,13 @@ backend::backend(size_t width, size_t height, const char* application_name, GLFW
     this->init_physical_device();
     this->init_logical_device();
 
-    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, width, height};
-
-    this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
-
-
-    for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
-        vk::ImageView attachments[] = {
-            this->swapchain.get_image_views()[i]
-        };
-        
-        vk::FramebufferCreateInfo framebuffer_create_info{};
-        framebuffer_create_info.renderPass = this->pipeline.get_render_pass().handle();
-        framebuffer_create_info.attachmentCount = 1;
-        framebuffer_create_info.pAttachments = attachments;
-        framebuffer_create_info.width = this->swapchain.get_extent().width;
-        framebuffer_create_info.height = this->swapchain.get_extent().height;
-        framebuffer_create_info.layers = 1;
-
-        framebuffers.push_back(this->logical_device.createFramebuffer(framebuffer_create_info));
-    }
-
     vk::CommandPoolCreateInfo pool_info{};
     pool_info.queueFamilyIndex = graphics_queue_id;
-    
     this->command_pool = this->logical_device.createCommandPool(pool_info);
 
-    vk::CommandBufferAllocateInfo allocate_info{};
-    allocate_info.commandPool = this->command_pool;
-    allocate_info.level = vk::CommandBufferLevel::ePrimary;
-    allocate_info.commandBufferCount = this->framebuffers.size();
-
-    this->command_buffers = this->logical_device.allocateCommandBuffers(allocate_info);
-
-    for(size_t i = 0; i < this->command_buffers.size(); i++){
-        vk::CommandBufferBeginInfo begin_info{};
-        
-        this->command_buffers[i].begin(begin_info);
-
-        vk::RenderPassBeginInfo render_info{};
-        render_info.renderPass = this->pipeline.get_render_pass().handle();
-        render_info.framebuffer = this->framebuffers[i];
-        render_info.renderArea.offset = vk::Offset2D{0, 0};
-        render_info.renderArea.extent = this->swapchain.get_extent();
-        
-        vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
-        vk::ClearValue clear_value{};
-        clear_value.setColor(clear_colour);
-        render_info.clearValueCount = 1;
-        render_info.pClearValues = &clear_value;
-
-        this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
-        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
-        this->command_buffers[i].draw(3, 1, 0, 0);
-        this->command_buffers[i].endRenderPass();
-        this->command_buffers[i].end();
-    }
+    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
+    this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
+    this->create_renderer();
 
     this->image_available.resize(max_frames_in_flight);
     this->render_finished.resize(max_frames_in_flight);
@@ -135,6 +86,10 @@ backend::backend(size_t width, size_t height, const char* application_name, GLFW
 }
 
 backend::~backend(){
+    this->cleanup_renderer();
+
+    this->pipeline.clean();
+
     for(size_t i = 0; i < max_frames_in_flight; i++){
         this->logical_device.destroySemaphore(this->render_finished[i]);
         this->logical_device.destroySemaphore(this->image_available[i]);
@@ -143,11 +98,7 @@ backend::~backend(){
 
     this->logical_device.destroyCommandPool(this->command_pool);
 
-    for(auto& fb : framebuffers)
-        logical_device.destroyFramebuffer(fb);
-
-    this->pipeline.clean();
-    this->swapchain.clean();
+    
     this->logical_device.destroy();
     if constexpr (enable_validation)
         extra_api::DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
@@ -157,12 +108,20 @@ backend::~backend(){
 
 void backend::frame_update(){
     this->logical_device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
-    auto image_index = this->logical_device.acquireNextImageKHR(this->swapchain.handle(), UINT64_MAX, image_available[this->current_frame], {nullptr}).value;
+    vk::ResultValue<uint32_t> image_index{vk::Result::eSuccess, 0};
+    try {
+        image_index = this->logical_device.acquireNextImageKHR(this->swapchain.handle(), UINT64_MAX, image_available[this->current_frame], {nullptr});
+    } catch(vk::OutOfDateKHRError& error) { 
+        this->recreate_renderer();
+        return;
+    }
+    if(image_index.result != vk::Result::eSuccess && image_index.result != vk::Result::eSuboptimalKHR)
+        throw std::runtime_error("Failed to acquire swapchain image");
+    
+    if(images_in_flight[image_index.value] != vk::Fence{nullptr})
+        this->logical_device.waitForFences({this->images_in_flight[image_index.value]}, true, UINT64_MAX);
 
-    if(images_in_flight[image_index] != vk::Fence{nullptr})
-        this->logical_device.waitForFences({this->images_in_flight[image_index]}, true, UINT64_MAX);
-
-    images_in_flight[image_index] = this->in_flight_fences[this->current_frame];
+    images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
 
     vk::SubmitInfo submit_info{};
 
@@ -173,7 +132,7 @@ void backend::frame_update(){
     submit_info.pWaitSemaphores = wait_semaphores;
     submit_info.pWaitDstStageMask = wait_stages;
     submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &command_buffers[image_index];
+    submit_info.pCommandBuffers = &command_buffers[image_index.value];
 
     vk::Semaphore signal_semaphores[] = {render_finished[this->current_frame]};
     submit_info.signalSemaphoreCount = 1;
@@ -190,10 +149,21 @@ void backend::frame_update(){
     vk::SwapchainKHR swapchains{this->swapchain.handle()};
     present_info.swapchainCount = 1;
     present_info.pSwapchains = &swapchains;
-    present_info.pImageIndices = &image_index;
+    present_info.pImageIndices = &image_index.value;
     present_info.pResults = nullptr;
 
-    this->presentation_queue.presentKHR(present_info);
+    vk::Result result;
+    try {
+        result = this->presentation_queue.presentKHR(present_info);
+    } catch(vk::OutOfDateKHRError& error){
+        this->recreate_renderer();
+    }
+
+    if(result == vk::Result::eSuboptimalKHR || framebuffer_resized){
+        framebuffer_resized = false;
+        this->recreate_renderer();
+    } else if(result != vk::Result::eSuccess)
+        throw std::runtime_error("Failed to acquire swapchain image");
 
     this->current_frame = (this->current_frame + 1) % max_frames_in_flight;
 }
@@ -380,6 +350,97 @@ void backend::init_physical_device(){
     }
 
     this->physical_device = suitable_devices[0]; // Higest rated device
+}
+
+void backend::cleanup_renderer(){
+    for(auto& fb : framebuffers)
+        logical_device.destroyFramebuffer(fb);
+
+    this->logical_device.freeCommandBuffers(this->command_pool, this->command_buffers);
+
+    this->swapchain.clean();
+}
+
+void backend::recreate_renderer(){
+    int width = 0, height = 0;
+    glfwGetFramebufferSize(this->window, &width, &height);
+    while(!width || !height){
+        glfwGetFramebufferSize(this->window, &width, &height);
+        glfwWaitEvents();
+    }
+
+    this->logical_device.waitIdle();
+    this->cleanup_renderer();
+
+    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
+    // Pipeline does not have to be recreated since its modified state is dynamic
+    this->create_renderer();
+}
+
+void backend::create_renderer(){
+    this->framebuffers.clear();
+    for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
+        vk::ImageView attachments[] = {
+            this->swapchain.get_image_views()[i]
+        };
+        
+        vk::FramebufferCreateInfo framebuffer_create_info{};
+        framebuffer_create_info.renderPass = this->pipeline.get_render_pass().handle();
+        framebuffer_create_info.attachmentCount = 1;
+        framebuffer_create_info.pAttachments = attachments;
+        framebuffer_create_info.width = this->swapchain.get_extent().width;
+        framebuffer_create_info.height = this->swapchain.get_extent().height;
+        framebuffer_create_info.layers = 1;
+
+        framebuffers.push_back(this->logical_device.createFramebuffer(framebuffer_create_info));
+    }
+    
+    vk::CommandBufferAllocateInfo allocate_info{};
+    allocate_info.commandPool = this->command_pool;
+    allocate_info.level = vk::CommandBufferLevel::ePrimary;
+    allocate_info.commandBufferCount = this->framebuffers.size();
+
+    this->command_buffers = this->logical_device.allocateCommandBuffers(allocate_info);
+
+    for(size_t i = 0; i < this->command_buffers.size(); i++){
+        vk::CommandBufferBeginInfo begin_info{};
+        
+        this->command_buffers[i].begin(begin_info);
+
+        vk::RenderPassBeginInfo render_info{};
+        render_info.renderPass = this->pipeline.get_render_pass().handle();
+        render_info.framebuffer = this->framebuffers[i];
+        render_info.renderArea.offset = vk::Offset2D{0, 0};
+        render_info.renderArea.extent = this->swapchain.get_extent();
+        
+        vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+        vk::ClearValue clear_value{};
+        clear_value.setColor(clear_colour);
+        render_info.clearValueCount = 1;
+        render_info.pClearValues = &clear_value;
+
+        this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
+        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+
+        vk::Viewport viewport{};
+        viewport.x = 0;
+        viewport.y = 0;
+        viewport.width = (float)swapchain.get_extent().width;
+        viewport.height = (float)swapchain.get_extent().height;
+        viewport.minDepth = 0.0f;
+        viewport.maxDepth = 1.0f;
+
+        vk::Rect2D scissor{};
+        scissor.offset = vk::Offset2D{0, 0};
+        scissor.extent = this->swapchain.get_extent();
+
+        this->command_buffers[i].setViewport(0, {viewport});
+        this->command_buffers[i].setScissor(0, {scissor});
+
+        this->command_buffers[i].draw(3, 1, 0, 0);
+        this->command_buffers[i].endRenderPass();
+        this->command_buffers[i].end();
+    }
 }
 
 #pragma endregion

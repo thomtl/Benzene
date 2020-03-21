@@ -98,23 +98,13 @@ namespace benzene::vulkan
             input_assembly_create_info.topology = vk::PrimitiveTopology::eTriangleList;
             input_assembly_create_info.primitiveRestartEnable = false;
 
-            vk::Viewport viewport{};
-            viewport.x = 0;
-            viewport.y = 0;
-            viewport.width = (float)swapchain->get_extent().width;
-            viewport.height = (float)swapchain->get_extent().height;
-            viewport.minDepth = 0.0f;
-            viewport.maxDepth = 1.0f;
-
-            vk::Rect2D scissor{};
-            scissor.offset = vk::Offset2D{0, 0};
-            scissor.extent = swapchain->get_extent();
+            
 
             vk::PipelineViewportStateCreateInfo viewport_create_info{};
             viewport_create_info.viewportCount = 1;
-            viewport_create_info.pViewports = &viewport;
+            viewport_create_info.pViewports = nullptr; // Dynamic and thus ignored
             viewport_create_info.scissorCount = 1;
-            viewport_create_info.pScissors = &scissor;
+            viewport_create_info.pScissors = nullptr; // Dynamic and thus ignored
 
             vk::PipelineRasterizationStateCreateInfo rasterizer{};
             rasterizer.depthClampEnable = false;
@@ -146,14 +136,14 @@ namespace benzene::vulkan
             colour_blending.blendConstants[2] = 0.0f;
             colour_blending.blendConstants[3] = 0.0f;
 
-            /*vk::DynamicState dynamic_states[] = {
-                (vk::DynamicState)VK_DYNAMIC_STATE_VIEWPORT,
-                (vk::DynamicState)VK_DYNAMIC_STATE_LINE_WIDTH
+            vk::DynamicState dynamic_states[] = {
+                vk::DynamicState::eViewport,
+                vk::DynamicState::eScissor
             };
 
             vk::PipelineDynamicStateCreateInfo dynamic_state{};
             dynamic_state.dynamicStateCount = 2;
-            dynamic_state.pDynamicStates = &dynamic_states;*/
+            dynamic_state.pDynamicStates = dynamic_states;
 
             vk::PipelineLayoutCreateInfo layout_create_info{};
             layout_create_info.setLayoutCount = 0;
@@ -174,6 +164,7 @@ namespace benzene::vulkan
             pipeline_create_info.pRasterizationState = &rasterizer;
             pipeline_create_info.pMultisampleState = &multisampling;
             pipeline_create_info.pColorBlendState = &colour_blending;
+            pipeline_create_info.pDynamicState = &dynamic_state;
             pipeline_create_info.layout = layout;
             pipeline_create_info.renderPass = renderpass.handle();
             pipeline_create_info.subpass = 0;

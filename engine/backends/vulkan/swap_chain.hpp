@@ -33,14 +33,17 @@ namespace benzene::vulkan
             return vk::PresentModeKHR::eFifo; // Guaranteed to exist
         }
 
-        vk::Extent2D choose_swap_extent(size_t default_width, size_t default_height){
+        vk::Extent2D choose_swap_extent(GLFWwindow* window){
             if(cap.currentExtent.width != UINT32_MAX)
                 return cap.currentExtent;
 
+            int width, height;
+            glfwGetWindowSize(window, &width, &height);
+
             vk::Extent2D extent{0, 0};
 
-            extent.width = std::max(cap.minImageExtent.width, std::min(cap.maxImageExtent.width, (uint32_t)default_width));
-            extent.height = std::max(cap.minImageExtent.height, std::min(cap.maxImageExtent.height, (uint32_t)default_height));
+            extent.width = std::max(cap.minImageExtent.width, std::min(cap.maxImageExtent.width, (uint32_t)width));
+            extent.height = std::max(cap.minImageExtent.height, std::min(cap.maxImageExtent.height, (uint32_t)height));
 
             return extent;
         }
@@ -53,13 +56,13 @@ namespace benzene::vulkan
     class swap_chain {
         public:
         swap_chain(): chain{nullptr} {}
-        swap_chain(vk::Device* dev, vk::PhysicalDevice* physical_dev, vk::SurfaceKHR* surface, uint32_t graphics_queue_id, uint32_t presentation_queue_id, size_t window_width, size_t window_height): dev{dev} {
+        swap_chain(vk::Device* dev, vk::PhysicalDevice* physical_dev, vk::SurfaceKHR* surface, uint32_t graphics_queue_id, uint32_t presentation_queue_id, GLFWwindow* win): dev{dev} {
             swapchain_support_details details{physical_dev, surface};
 
             auto surface_format = details.choose_format();
             this->format = surface_format.format;
             auto mode = details.choose_present_mode();
-            this->extent = details.choose_swap_extent(window_width, window_height);
+            this->extent = details.choose_swap_extent(win);
 
             auto image_count = details.cap.minImageCount + 1;
             if(details.cap.maxImageCount > 0 && image_count > details.cap.maxImageCount)

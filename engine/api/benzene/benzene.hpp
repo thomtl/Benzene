@@ -13,6 +13,7 @@ namespace benzene
     class IBackend {
         public:
         virtual ~IBackend() {}
+        virtual void framebuffer_resize_callback(int width, int height) = 0;
         virtual void frame_update() = 0;
         virtual void end_run() = 0;
     };
