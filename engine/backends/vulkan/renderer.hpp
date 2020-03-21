@@ -7,58 +7,64 @@
 #include "../../core/format.hpp"
 #include "../../core/utils.hpp"
 
+#include <glm/glm.hpp>
+#include <array>
+
 namespace benzene::vulkan
 {
+    struct vertex {
+        glm::vec2 pos;
+        glm::vec3 colour;
+
+        static vk::VertexInputBindingDescription get_binding_description(){
+            vk::VertexInputBindingDescription info{};
+            info.binding = 0;
+            info.stride = sizeof(vertex);
+            info.inputRate = vk::VertexInputRate::eVertex;
+            return info;
+        }
+
+        static std::array<vk::VertexInputAttributeDescription, 2> get_attribute_descriptions(){
+            std::array<vk::VertexInputAttributeDescription, 2> desc{};
+            desc[0].binding = 0;
+            desc[0].location = 0;
+            desc[0].format = vk::Format::eR32G32Sfloat;
+            desc[0].offset = offsetof(vertex, pos);
+
+            desc[1].binding = 0;
+            desc[1].location = 1;
+            desc[1].format = vk::Format::eR32G32B32Sfloat;
+            desc[1].offset = offsetof(vertex, colour);
+
+            return desc;
+        }
+    };
+
+    class vertex_buffer {
+        public:
+        vertex_buffer(): dev{nullptr}, physical_dev{nullptr}, buffer{nullptr}, memory{nullptr} {}
+        vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> verticies);
+
+        void clean();
+
+        vk::Buffer& handle(){
+            return this->buffer;
+        }
+
+        private:
+        vk::Device dev;
+        vk::PhysicalDevice physical_dev;
+        vk::Buffer buffer;
+        vk::DeviceMemory memory;
+    };
+
     class render_pass {
         public:
-        render_pass(): renderpass{nullptr}, device{nullptr}, swapchain{nullptr} {}
-        render_pass(vk::Device device, swap_chain* swapchain): device{device}, swapchain{swapchain} {
-            vk::AttachmentDescription colour_attachment{};
-            colour_attachment.format = swapchain->get_format();
-            colour_attachment.samples = vk::SampleCountFlagBits::e1;
-            colour_attachment.loadOp = vk::AttachmentLoadOp::eClear;
-            colour_attachment.storeOp = vk::AttachmentStoreOp::eStore;
-            colour_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
-            colour_attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
-            colour_attachment.initialLayout = vk::ImageLayout::eUndefined;
-            colour_attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+        render_pass();
+        render_pass(vk::Device device, swap_chain* swapchain);
 
-            vk::AttachmentReference colour_attachment_ref{};
-            colour_attachment_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
-            colour_attachment_ref.attachment = 0;
-
-            vk::SubpassDescription subpass{};
-            subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
-            subpass.colorAttachmentCount = 1;
-            subpass.pColorAttachments = &colour_attachment_ref;
-
-            vk::SubpassDependency dependency{};
-            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-            dependency.dstSubpass = 0;
-            dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-            dependency.srcAccessMask = {};
-            dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
-            dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
-
-            
-            vk::RenderPassCreateInfo render_pass_create_info{};
-            render_pass_create_info.attachmentCount = 1;
-            render_pass_create_info.pAttachments = &colour_attachment;
-            render_pass_create_info.subpassCount = 1;
-            render_pass_create_info.pSubpasses = &subpass;
-            render_pass_create_info.dependencyCount = 1;
-            render_pass_create_info.pDependencies = &dependency;
-
-            this->renderpass = device.createRenderPass(render_pass_create_info);
-        }
-
-        void clean(){
-            this->device.destroyRenderPass(this->renderpass);
-        }
-
-        vk::RenderPass& handle(){
-            return renderpass;
-        }
+        void clean();
+        vk::RenderPass& handle();
 
         private:
         vk::RenderPass renderpass;
@@ -68,121 +74,8 @@ namespace benzene::vulkan
 
     class render_pipeline {
         public:
-        render_pipeline(): device{nullptr}, swapchain{nullptr}, renderpass{}, layout{nullptr}, pipeline{nullptr} {}
-        render_pipeline(vk::Device device, swap_chain* swapchain): device{device}, swapchain{swapchain} {
-            auto vert_code = benzene::read_binary_file("../engine/shaders/vertex.spv");
-            shader vertex{device, vert_code};
-
-            auto frag_code = benzene::read_binary_file("../engine/shaders/fragment.spv");
-            shader fragment{device, frag_code};
-
-            vk::PipelineShaderStageCreateInfo vert_info{};
-            vert_info.stage = vk::ShaderStageFlagBits::eVertex;
-            vert_info.module = vertex.handle();
-            vert_info.pName = "main";
-
-            vk::PipelineShaderStageCreateInfo frag_info{};
-            frag_info.stage = vk::ShaderStageFlagBits::eFragment;
-            frag_info.module = fragment.handle();
-            frag_info.pName = "main";
-
-            vk::PipelineShaderStageCreateInfo shader_stages[] = {vert_info, frag_info};
-
-            vk::PipelineVertexInputStateCreateInfo vertex_input_create_info{};
-            vertex_input_create_info.vertexBindingDescriptionCount = 0;
-            vertex_input_create_info.pVertexBindingDescriptions = nullptr;
-            vertex_input_create_info.vertexAttributeDescriptionCount = 0;
-            vertex_input_create_info.pVertexAttributeDescriptions = nullptr;
-
-            vk::PipelineInputAssemblyStateCreateInfo input_assembly_create_info{};
-            input_assembly_create_info.topology = vk::PrimitiveTopology::eTriangleList;
-            input_assembly_create_info.primitiveRestartEnable = false;
-
-            
-
-            vk::PipelineViewportStateCreateInfo viewport_create_info{};
-            viewport_create_info.viewportCount = 1;
-            viewport_create_info.pViewports = nullptr; // Dynamic and thus ignored
-            viewport_create_info.scissorCount = 1;
-            viewport_create_info.pScissors = nullptr; // Dynamic and thus ignored
-
-            vk::PipelineRasterizationStateCreateInfo rasterizer{};
-            rasterizer.depthClampEnable = false;
-            rasterizer.rasterizerDiscardEnable = false;
-            rasterizer.polygonMode = vk::PolygonMode::eFill;
-            rasterizer.lineWidth = 1.0f;
-            rasterizer.cullMode = vk::CullModeFlagBits::eBack;
-            rasterizer.frontFace = vk::FrontFace::eClockwise;
-            rasterizer.depthBiasEnable = false;
-
-            vk::PipelineMultisampleStateCreateInfo multisampling{};
-            multisampling.sampleShadingEnable = false;
-            multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
-            multisampling.minSampleShading = 1.0f;
-            multisampling.alphaToCoverageEnable = false;
-            multisampling.alphaToOneEnable = false;
-
-            vk::PipelineColorBlendAttachmentState colour_blend_attachment{};
-            colour_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
-            colour_blend_attachment.blendEnable = false;
-            
-            vk::PipelineColorBlendStateCreateInfo colour_blending{};
-            colour_blending.logicOpEnable = false;
-            colour_blending.logicOp = vk::LogicOp::eCopy;
-            colour_blending.attachmentCount = 1;
-            colour_blending.pAttachments = &colour_blend_attachment;
-            colour_blending.blendConstants[0] = 0.0f;
-            colour_blending.blendConstants[1] = 0.0f;
-            colour_blending.blendConstants[2] = 0.0f;
-            colour_blending.blendConstants[3] = 0.0f;
-
-            vk::DynamicState dynamic_states[] = {
-                vk::DynamicState::eViewport,
-                vk::DynamicState::eScissor
-            };
-
-            vk::PipelineDynamicStateCreateInfo dynamic_state{};
-            dynamic_state.dynamicStateCount = 2;
-            dynamic_state.pDynamicStates = dynamic_states;
-
-            vk::PipelineLayoutCreateInfo layout_create_info{};
-            layout_create_info.setLayoutCount = 0;
-            layout_create_info.pSetLayouts = nullptr;
-            layout_create_info.pushConstantRangeCount = 0;
-            layout_create_info.pPushConstantRanges = nullptr;
-
-            this->layout = device.createPipelineLayout(layout_create_info);
-            
-            this->renderpass = render_pass{device, swapchain};
-
-            vk::GraphicsPipelineCreateInfo pipeline_create_info{};
-            pipeline_create_info.stageCount = 2;
-            pipeline_create_info.pStages = shader_stages;
-            pipeline_create_info.pVertexInputState = &vertex_input_create_info;
-            pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
-            pipeline_create_info.pViewportState = &viewport_create_info;
-            pipeline_create_info.pRasterizationState = &rasterizer;
-            pipeline_create_info.pMultisampleState = &multisampling;
-            pipeline_create_info.pColorBlendState = &colour_blending;
-            pipeline_create_info.pDynamicState = &dynamic_state;
-            pipeline_create_info.layout = layout;
-            pipeline_create_info.renderPass = renderpass.handle();
-            pipeline_create_info.subpass = 0;
-            pipeline_create_info.basePipelineHandle = {nullptr};
-            pipeline_create_info.basePipelineIndex = -1;
-
-            this->pipeline = device.createGraphicsPipeline({nullptr}, pipeline_create_info);
-            
-
-            vertex.clean();
-            fragment.clean();
-        }
-
-        void clean(){
-            device.destroyPipeline(this->pipeline);
-            device.destroyPipelineLayout(this->layout);
-            renderpass.clean();
-        }
+        render_pipeline();
+        render_pipeline(vk::Device device, swap_chain* swapchain);
 
         render_pass& get_render_pass(){
             return renderpass;
@@ -191,6 +84,8 @@ namespace benzene::vulkan
         vk::Pipeline& get_pipeline(){
             return pipeline;
         }
+
+        void clean();
 
         private:
         vk::Device device;

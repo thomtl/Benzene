@@ -64,6 +64,14 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     pool_info.queueFamilyIndex = graphics_queue_id;
     this->command_pool = this->logical_device.createCommandPool(pool_info);
 
+    const std::vector<vertex> raw_vertices = {
+        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
+        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
+    };
+
+    this->vertices = vertex_buffer{this->logical_device, this->physical_device, {raw_vertices}};
+
     this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
     this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
     this->create_renderer();
@@ -87,6 +95,8 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
 
 backend::~backend(){
     this->cleanup_renderer();
+
+    this->vertices.clean();
 
     this->pipeline.clean();
 
@@ -434,6 +444,7 @@ void backend::create_renderer(){
         scissor.offset = vk::Offset2D{0, 0};
         scissor.extent = this->swapchain.get_extent();
 
+        this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
         this->command_buffers[i].setViewport(0, {viewport});
         this->command_buffers[i].setScissor(0, {scissor});
 

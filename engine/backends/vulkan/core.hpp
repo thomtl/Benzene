@@ -91,6 +91,7 @@ namespace benzene::vulkan {
         GLFWwindow* window;
         bool framebuffer_resized;
         size_t current_frame;
+        vertex_buffer vertices;
         std::vector<vk::Semaphore> image_available, render_finished;
         std::vector<vk::Fence> in_flight_fences, images_in_flight;
         vk::CommandPool command_pool;
