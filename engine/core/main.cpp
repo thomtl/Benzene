@@ -22,7 +22,9 @@ void benzene::instance::run(std::function<void(void)> functor){
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         functor();
+        this->backend->frame_update();
     }
+    this->backend->end_run();
 }
 
 benzene::instance::~instance(){

@@ -47,6 +47,7 @@ namespace benzene::vulkan {
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
+    constexpr size_t max_frames_in_flight = 2;
 
     
 
@@ -54,6 +55,9 @@ namespace benzene::vulkan {
         public:
         backend(size_t width, size_t height, const char* application_name, GLFWwindow* window);
         ~backend();
+
+        void frame_update();
+        void end_run();
 
         private:
         static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
@@ -75,8 +79,13 @@ namespace benzene::vulkan {
 
             return {};
         }
-        
 
+        size_t current_frame;
+        std::vector<vk::Semaphore> image_available, render_finished;
+        std::vector<vk::Fence> in_flight_fences, images_in_flight;
+        vk::CommandPool command_pool;
+        std::vector<vk::CommandBuffer> command_buffers;
+        std::vector<vk::Framebuffer> framebuffers;
         vk::DebugUtilsMessengerEXT debug_messenger;
         vk::Instance instance;
         vk::SurfaceKHR surface;

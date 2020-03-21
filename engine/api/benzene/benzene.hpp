@@ -13,6 +13,8 @@ namespace benzene
     class IBackend {
         public:
         virtual ~IBackend() {}
+        virtual void frame_update() = 0;
+        virtual void end_run() = 0;
     };
 
     class instance {

@@ -6,7 +6,7 @@ using namespace benzene::vulkan;
 
 #pragma region backend
 
-backend::backend(size_t width, size_t height, const char* application_name, GLFWwindow* window) {
+backend::backend(size_t width, size_t height, const char* application_name, GLFWwindow* window): current_frame{0} {
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
 
@@ -65,11 +65,87 @@ backend::backend(size_t width, size_t height, const char* application_name, GLFW
     this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
 
 
+    for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
+        vk::ImageView attachments[] = {
+            this->swapchain.get_image_views()[i]
+        };
+        
+        vk::FramebufferCreateInfo framebuffer_create_info{};
+        framebuffer_create_info.renderPass = this->pipeline.get_render_pass().handle();
+        framebuffer_create_info.attachmentCount = 1;
+        framebuffer_create_info.pAttachments = attachments;
+        framebuffer_create_info.width = this->swapchain.get_extent().width;
+        framebuffer_create_info.height = this->swapchain.get_extent().height;
+        framebuffer_create_info.layers = 1;
+
+        framebuffers.push_back(this->logical_device.createFramebuffer(framebuffer_create_info));
+    }
+
+    vk::CommandPoolCreateInfo pool_info{};
+    pool_info.queueFamilyIndex = graphics_queue_id;
+    
+    this->command_pool = this->logical_device.createCommandPool(pool_info);
+
+    vk::CommandBufferAllocateInfo allocate_info{};
+    allocate_info.commandPool = this->command_pool;
+    allocate_info.level = vk::CommandBufferLevel::ePrimary;
+    allocate_info.commandBufferCount = this->framebuffers.size();
+
+    this->command_buffers = this->logical_device.allocateCommandBuffers(allocate_info);
+
+    for(size_t i = 0; i < this->command_buffers.size(); i++){
+        vk::CommandBufferBeginInfo begin_info{};
+        
+        this->command_buffers[i].begin(begin_info);
+
+        vk::RenderPassBeginInfo render_info{};
+        render_info.renderPass = this->pipeline.get_render_pass().handle();
+        render_info.framebuffer = this->framebuffers[i];
+        render_info.renderArea.offset = vk::Offset2D{0, 0};
+        render_info.renderArea.extent = this->swapchain.get_extent();
+        
+        vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+        vk::ClearValue clear_value{};
+        clear_value.setColor(clear_colour);
+        render_info.clearValueCount = 1;
+        render_info.pClearValues = &clear_value;
+
+        this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
+        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+        this->command_buffers[i].draw(3, 1, 0, 0);
+        this->command_buffers[i].endRenderPass();
+        this->command_buffers[i].end();
+    }
+
+    this->image_available.resize(max_frames_in_flight);
+    this->render_finished.resize(max_frames_in_flight);
+    this->in_flight_fences.resize(max_frames_in_flight);
+    this->images_in_flight.resize(this->swapchain.get_images().size(), {nullptr});
+
+    vk::SemaphoreCreateInfo semaphore_info{};
+    vk::FenceCreateInfo fence_info{};
+    fence_info.flags = vk::FenceCreateFlagBits::eSignaled;
+    for(size_t i = 0; i < max_frames_in_flight; i++){
+        this->image_available[i] = this->logical_device.createSemaphore(semaphore_info);
+        this->render_finished[i] = this->logical_device.createSemaphore(semaphore_info);
+        this->in_flight_fences[i] = this->logical_device.createFence(fence_info);
+    }
 
     print("vulkan: Initialized Vulkan backend\n");
 }
 
 backend::~backend(){
+    for(size_t i = 0; i < max_frames_in_flight; i++){
+        this->logical_device.destroySemaphore(this->render_finished[i]);
+        this->logical_device.destroySemaphore(this->image_available[i]);
+        this->logical_device.destroyFence(this->in_flight_fences[i]);
+    }
+
+    this->logical_device.destroyCommandPool(this->command_pool);
+
+    for(auto& fb : framebuffers)
+        logical_device.destroyFramebuffer(fb);
+
     this->pipeline.clean();
     this->swapchain.clean();
     this->logical_device.destroy();
@@ -77,6 +153,53 @@ backend::~backend(){
         extra_api::DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
     this->instance.destroySurfaceKHR(this->surface);
     this->instance.destroy();
+}
+
+void backend::frame_update(){
+    this->logical_device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
+    auto image_index = this->logical_device.acquireNextImageKHR(this->swapchain.handle(), UINT64_MAX, image_available[this->current_frame], {nullptr}).value;
+
+    if(images_in_flight[image_index] != vk::Fence{nullptr})
+        this->logical_device.waitForFences({this->images_in_flight[image_index]}, true, UINT64_MAX);
+
+    images_in_flight[image_index] = this->in_flight_fences[this->current_frame];
+
+    vk::SubmitInfo submit_info{};
+
+    vk::Semaphore wait_semaphores[] = {image_available[this->current_frame]};
+    vk::PipelineStageFlags wait_stages[] = {vk::PipelineStageFlagBits::eColorAttachmentOutput};
+
+    submit_info.waitSemaphoreCount = 1;
+    submit_info.pWaitSemaphores = wait_semaphores;
+    submit_info.pWaitDstStageMask = wait_stages;
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &command_buffers[image_index];
+
+    vk::Semaphore signal_semaphores[] = {render_finished[this->current_frame]};
+    submit_info.signalSemaphoreCount = 1;
+    submit_info.pSignalSemaphores = signal_semaphores;
+
+    this->logical_device.resetFences({this->in_flight_fences[this->current_frame]});
+    this->graphics_queue.submit({submit_info}, this->in_flight_fences[this->current_frame]);
+
+
+    vk::PresentInfoKHR present_info{};
+    present_info.waitSemaphoreCount = 1;
+    present_info.pWaitSemaphores = signal_semaphores;
+    
+    vk::SwapchainKHR swapchains{this->swapchain.handle()};
+    present_info.swapchainCount = 1;
+    present_info.pSwapchains = &swapchains;
+    present_info.pImageIndices = &image_index;
+    present_info.pResults = nullptr;
+
+    this->presentation_queue.presentKHR(present_info);
+
+    this->current_frame = (this->current_frame + 1) % max_frames_in_flight;
+}
+
+void backend::end_run(){
+    this->logical_device.waitIdle();
 }
 
 VKAPI_ATTR VkBool32 VKAPI_CALL backend::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data){

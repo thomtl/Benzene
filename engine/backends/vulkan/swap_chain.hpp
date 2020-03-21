@@ -130,6 +130,10 @@ namespace benzene::vulkan
             return extent;
         }
 
+        vk::SwapchainKHR& handle(){
+            return chain;
+        }
+
         std::vector<vk::Image>& get_images(){
             return images;
         }

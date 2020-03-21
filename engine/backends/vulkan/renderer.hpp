@@ -31,12 +31,23 @@ namespace benzene::vulkan
             subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
             subpass.colorAttachmentCount = 1;
             subpass.pColorAttachments = &colour_attachment_ref;
+
+            vk::SubpassDependency dependency{};
+            dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+            dependency.dstSubpass = 0;
+            dependency.srcStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+            dependency.srcAccessMask = {};
+            dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
+            dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
+
             
             vk::RenderPassCreateInfo render_pass_create_info{};
             render_pass_create_info.attachmentCount = 1;
             render_pass_create_info.pAttachments = &colour_attachment;
             render_pass_create_info.subpassCount = 1;
             render_pass_create_info.pSubpasses = &subpass;
+            render_pass_create_info.dependencyCount = 1;
+            render_pass_create_info.pDependencies = &dependency;
 
             this->renderpass = device.createRenderPass(render_pass_create_info);
         }
@@ -127,8 +138,13 @@ namespace benzene::vulkan
             
             vk::PipelineColorBlendStateCreateInfo colour_blending{};
             colour_blending.logicOpEnable = false;
+            colour_blending.logicOp = vk::LogicOp::eCopy;
             colour_blending.attachmentCount = 1;
             colour_blending.pAttachments = &colour_blend_attachment;
+            colour_blending.blendConstants[0] = 0.0f;
+            colour_blending.blendConstants[1] = 0.0f;
+            colour_blending.blendConstants[2] = 0.0f;
+            colour_blending.blendConstants[3] = 0.0f;
 
             /*vk::DynamicState dynamic_states[] = {
                 (vk::DynamicState)VK_DYNAMIC_STATE_VIEWPORT,
@@ -175,6 +191,14 @@ namespace benzene::vulkan
             device.destroyPipeline(this->pipeline);
             device.destroyPipelineLayout(this->layout);
             renderpass.clean();
+        }
+
+        render_pass& get_render_pass(){
+            return renderpass;
+        }
+
+        vk::Pipeline& get_pipeline(){
+            return pipeline;
         }
 
         private:
