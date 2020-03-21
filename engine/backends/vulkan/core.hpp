@@ -12,8 +12,10 @@
 
 #include <benzene/benzene.hpp>
 #include "../../core/format.hpp"
+#include "../../core/utils.hpp"
 #include "extra_api.hpp"
 #include "swap_chain.hpp"
+#include "renderer.hpp"
 
 namespace benzene::vulkan
 {
@@ -82,6 +84,8 @@ namespace benzene::vulkan {
         vk::Device logical_device;
 
         swap_chain swapchain;
+        render_pipeline pipeline;
+
 
 
         uint32_t graphics_queue_id, presentation_queue_id;
