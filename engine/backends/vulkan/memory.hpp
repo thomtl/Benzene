@@ -1,57 +1,49 @@
 #pragma once
 
 #include <vulkan/vulkan.hpp>
+#include "libs/vk_mem_alloc.hpp"
 
 namespace benzene::vulkan
 {
     class buffer {
         public:
-        buffer(): buf{nullptr}, mem{nullptr} {}
-        buffer(vk::Device dev, vk::PhysicalDevice physical_dev, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): dev{dev} {
+        buffer(): allocator{nullptr}, buf{nullptr}, allocation{nullptr} {}
+        buffer(vma::Allocator allocator, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): allocator{allocator} {
             vk::BufferCreateInfo buffer_info{};
             buffer_info.size = size;
             buffer_info.usage = usage;
             buffer_info.sharingMode = vk::SharingMode::eExclusive;
+            
+            //auto requirements = dev.getBufferMemoryRequirements(this->buf);
+            
+            vma::AllocationCreateInfo alloc_info{};
+            alloc_info.usage = vma::MemoryUsage::eUnknown;
+            alloc_info.requiredFlags = properties;
+            //alloc_info.memoryTypeBits = requirements.memoryTypeBits;
 
-            this->buf = dev.createBuffer(buffer_info);
 
-            auto requirements = dev.getBufferMemoryRequirements(this->buf);
-
-            vk::MemoryAllocateInfo alloc_info{};
-            auto find_memory_type = [&physical_dev](uint32_t type_filter, vk::MemoryPropertyFlags properties) -> uint32_t {
-                auto mem_properties = physical_dev.getMemoryProperties();
-
-                for(size_t i = 0; i < mem_properties.memoryTypeCount; i++)
-                    if(type_filter & (1 << i) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
-                        return i;
-
-                throw std::runtime_error("Couldn't find suitable memory type");
-            };
-
-            alloc_info.allocationSize = requirements.size;
-            alloc_info.memoryTypeIndex = find_memory_type(requirements.memoryTypeBits, properties);
-
-            this->mem = dev.allocateMemory(alloc_info);
-
-            dev.bindBufferMemory(buf, mem, 0);
+            std::tie(buf, allocation) = allocator.createBuffer(buffer_info, alloc_info);
         }
 
         void clean(){
-            this->dev.destroyBuffer(this->buf);
-            this->dev.freeMemory(this->mem);
+            allocator.destroyBuffer(buf, allocation);
         }
 
         vk::Buffer& handle(){
             return buf;
         }
 
-        vk::DeviceMemory& memory_handle(){
-            return mem;
+        vma::Allocation& allocation_handle(){
+            return allocation;
         }
 
+        /*vk::DeviceMemory& memory_handle(){
+            return mem;
+        }*/
+
         private:
-        vk::Device dev;
+        vma::Allocator allocator;
         vk::Buffer buf;
-        vk::DeviceMemory mem;
+        vma::Allocation allocation;
     };
 } // namespace benzene::vulkan

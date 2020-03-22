@@ -71,12 +71,18 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     this->init_physical_device();
     this->init_logical_device();
 
+    vma::AllocatorCreateInfo allocator_create_info{};
+    allocator_create_info.device = this->logical_device;
+    allocator_create_info.physicalDevice = this->physical_device;
+
+    this->allocator = vma::createAllocator(allocator_create_info);
+
     vk::CommandPoolCreateInfo pool_info{};
     pool_info.queueFamilyIndex = graphics_queue_id;
     this->command_pool = this->logical_device.createCommandPool(pool_info);
 
-    this->vertices = vertex_buffer{this->logical_device, this->physical_device, this->graphics_queue, command_pool, {raw_vertices}};
-    this->indices = index_buffer{this->logical_device, this->physical_device, this->graphics_queue, command_pool, {raw_indices}};
+    this->vertices = vertex_buffer{this->logical_device, this->allocator, this->graphics_queue, command_pool, {raw_vertices}};
+    this->indices = index_buffer{this->logical_device, this->allocator, this->graphics_queue, command_pool, {raw_indices}};
 
     this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
     this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
@@ -115,6 +121,7 @@ backend::~backend(){
 
     this->logical_device.destroyCommandPool(this->command_pool);
 
+    this->allocator.destroy();
     
     this->logical_device.destroy();
     if constexpr (enable_validation)

@@ -35,15 +35,15 @@ static void copy_buffer(buffer& src, buffer& dst, vk::Device dev, vk::Queue queu
 
 #pragma region vertex_buffer
 
-vertex_buffer::vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices) {
+vertex_buffer::vertex_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices) {
     size_t size = sizeof(vertex) * vertices.size();
-    auto staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+    auto staging_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
+    void* data = allocator.mapMemory(staging_buf.allocation_handle());
     memcpy(data, vertices.data(), size);
-    dev.unmapMemory(staging_buf.memory_handle());
+    allocator.unmapMemory(staging_buf.allocation_handle());
 
-    this->vertex_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+    this->vertex_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
     copy_buffer(staging_buf, vertex_buf, dev, queue, cmd, size);
 
@@ -58,15 +58,15 @@ void vertex_buffer::clean(){
 
 #pragma region index_buffer
 
-index_buffer::index_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices) {
+index_buffer::index_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices) {
     size_t size = sizeof(uint16_t) * vertices.size();
-    auto staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+    auto staging_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
+    void* data = allocator.mapMemory(staging_buf.allocation_handle());
     memcpy(data, vertices.data(), size);
-    dev.unmapMemory(staging_buf.memory_handle());
+    allocator.unmapMemory(staging_buf.allocation_handle());
 
-    this->index_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+    this->index_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
     copy_buffer(staging_buf, index_buf, dev, queue, cmd, size);
 

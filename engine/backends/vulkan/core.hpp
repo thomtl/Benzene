@@ -11,6 +11,8 @@
 #include <algorithm>
 
 #include <benzene/benzene.hpp>
+
+#include "libs/vk_mem_alloc.hpp"
 #include "../../core/format.hpp"
 #include "../../core/utils.hpp"
 #include "extra_api.hpp"
@@ -103,6 +105,8 @@ namespace benzene::vulkan {
         vk::SurfaceKHR surface;
         vk::PhysicalDevice physical_device;
         vk::Device logical_device;
+
+        vma::Allocator allocator;
 
         swap_chain swapchain;
         render_pipeline pipeline;

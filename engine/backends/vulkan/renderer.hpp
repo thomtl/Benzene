@@ -44,7 +44,7 @@ namespace benzene::vulkan
     class vertex_buffer {
         public:
         vertex_buffer(): vertex_buf{} {}
-        vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices);
+        vertex_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices);
 
         void clean();
 
@@ -59,7 +59,7 @@ namespace benzene::vulkan
     class index_buffer {
         public:
         index_buffer(): index_buf{} {}
-        index_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices);
+        index_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices);
 
         void clean();
 
