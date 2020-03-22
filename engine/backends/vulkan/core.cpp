@@ -4,6 +4,17 @@
 
 using namespace benzene::vulkan;
 
+const std::vector<vertex> raw_vertices = {
+    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
+    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
+    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
+    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
+};
+    
+const std::vector<uint16_t> raw_indices = {
+    0, 1, 2, 2, 3, 0
+};
+
 #pragma region backend
 
 backend::backend(const char* application_name, GLFWwindow* window): window{window}, current_frame{0} {
@@ -64,15 +75,8 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     pool_info.queueFamilyIndex = graphics_queue_id;
     this->command_pool = this->logical_device.createCommandPool(pool_info);
 
-    const std::vector<vertex> raw_vertices = {
-        {{0.0f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-        {{0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},
-        {{-0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}}
-    };
-
-    this->vertices = vertex_buffer{this->logical_device, this->physical_device, {raw_vertices}};
-    this->vertices.copy(this->graphics_queue, command_pool);
-
+    this->vertices = vertex_buffer{this->logical_device, this->physical_device, this->graphics_queue, command_pool, {raw_vertices}};
+    this->indices = index_buffer{this->logical_device, this->physical_device, this->graphics_queue, command_pool, {raw_indices}};
 
     this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
     this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
@@ -99,6 +103,7 @@ backend::~backend(){
     this->cleanup_renderer();
 
     this->vertices.clean();
+    this->indices.clean();
 
     this->pipeline.clean();
 
@@ -447,10 +452,11 @@ void backend::create_renderer(){
         scissor.extent = this->swapchain.get_extent();
 
         this->command_buffers[i].bindVertexBuffers(0, {vertices.vertex_buffer_handle()}, {0});
+        this->command_buffers[i].bindIndexBuffer(indices.index_buffer_handle(), 0, vk::IndexType::eUint16);
         this->command_buffers[i].setViewport(0, {viewport});
         this->command_buffers[i].setScissor(0, {scissor});
 
-        this->command_buffers[i].draw(3, 1, 0, 0);
+        this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
         this->command_buffers[i].endRenderPass();
         this->command_buffers[i].end();
     }

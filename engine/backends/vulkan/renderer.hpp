@@ -43,26 +43,32 @@ namespace benzene::vulkan
 
     class vertex_buffer {
         public:
-        vertex_buffer(): staging_buf{}, vertex_buf{} {}
-        vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> verticies);
+        vertex_buffer(): vertex_buf{} {}
+        vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices);
 
         void clean();
-
-        vk::Buffer& staging_buffer_handle(){
-            return staging_buf.handle();
-        }
 
         vk::Buffer& vertex_buffer_handle(){
             return vertex_buf.handle();
         }
 
-        void copy(vk::Queue queue, vk::CommandPool cmd);
+        private:
+        buffer vertex_buf;
+    };
+
+    class index_buffer {
+        public:
+        index_buffer(): index_buf{} {}
+        index_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices);
+
+        void clean();
+
+        vk::Buffer& index_buffer_handle(){
+            return index_buf.handle();
+        }
 
         private:
-        vk::Device dev;
-        buffer staging_buf;
-        buffer vertex_buf;
-        size_t size;
+        buffer index_buf;
     };
 
     class render_pass {

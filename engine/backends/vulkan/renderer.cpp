@@ -2,21 +2,7 @@
 
 using namespace benzene::vulkan;
 
-#pragma region vertex_buffer
-
-vertex_buffer::vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> vertices): dev{dev} {
-    size_t size = sizeof(vertex) * vertices.size();
-    this->staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
-
-    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
-    memcpy(data, vertices.data(), size);
-    dev.unmapMemory(staging_buf.memory_handle());
-
-    this->vertex_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
-    this->size = size;
-}
-
-void vertex_buffer::copy(vk::Queue queue, vk::CommandPool cmd){
+static void copy_buffer(buffer& src, buffer& dst, vk::Device dev, vk::Queue queue, vk::CommandPool cmd, size_t size){
     vk::CommandBufferAllocateInfo alloc_info{};
     alloc_info.level = vk::CommandBufferLevel::ePrimary;
     alloc_info.commandPool = cmd;
@@ -35,7 +21,7 @@ void vertex_buffer::copy(vk::Queue queue, vk::CommandPool cmd){
     copy_region.dstOffset = 0;
     copy_region.size = size;
 
-    buf.copyBuffer(this->staging_buf.handle(), this->vertex_buf.handle(), {copy_region});
+    buf.copyBuffer(src.handle(), dst.handle(), {copy_region});
     buf.end();
 
     vk::SubmitInfo submit_info{};
@@ -47,9 +33,48 @@ void vertex_buffer::copy(vk::Queue queue, vk::CommandPool cmd){
     dev.freeCommandBuffers(cmd, buffers);
 }
 
+#pragma region vertex_buffer
+
+vertex_buffer::vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices) {
+    size_t size = sizeof(vertex) * vertices.size();
+    auto staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+
+    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
+    memcpy(data, vertices.data(), size);
+    dev.unmapMemory(staging_buf.memory_handle());
+
+    this->vertex_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+
+    copy_buffer(staging_buf, vertex_buf, dev, queue, cmd, size);
+
+    staging_buf.clean();
+}
+
 void vertex_buffer::clean(){
-    this->staging_buf.clean();
     this->vertex_buf.clean();
+}
+
+#pragma endregion
+
+#pragma region index_buffer
+
+index_buffer::index_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices) {
+    size_t size = sizeof(uint16_t) * vertices.size();
+    auto staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+
+    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
+    memcpy(data, vertices.data(), size);
+    dev.unmapMemory(staging_buf.memory_handle());
+
+    this->index_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+
+    copy_buffer(staging_buf, index_buf, dev, queue, cmd, size);
+
+    staging_buf.clean();
+}
+
+void index_buffer::clean(){
+    this->index_buf.clean();
 }
 
 #pragma endregion
