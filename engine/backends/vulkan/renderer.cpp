@@ -4,43 +4,52 @@ using namespace benzene::vulkan;
 
 #pragma region vertex_buffer
 
-vertex_buffer::vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> vertices): dev{dev}, physical_dev{physical_dev} {
-    vk::BufferCreateInfo create_info{};
-    create_info.size = sizeof(vertex) * vertices.size();
-    create_info.usage = vk::BufferUsageFlagBits::eVertexBuffer;
-    create_info.sharingMode = vk::SharingMode::eExclusive;
+vertex_buffer::vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> vertices): dev{dev} {
+    size_t size = sizeof(vertex) * vertices.size();
+    this->staging_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-    this->buffer = dev.createBuffer(create_info);
+    void* data = dev.mapMemory(staging_buf.memory_handle(), 0, size);
+    memcpy(data, vertices.data(), size);
+    dev.unmapMemory(staging_buf.memory_handle());
 
-    auto requirements = dev.getBufferMemoryRequirements(this->buffer);
+    this->vertex_buf = buffer{dev, physical_dev, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+    this->size = size;
+}
 
+void vertex_buffer::copy(vk::Queue queue, vk::CommandPool cmd){
+    vk::CommandBufferAllocateInfo alloc_info{};
+    alloc_info.level = vk::CommandBufferLevel::ePrimary;
+    alloc_info.commandPool = cmd;
+    alloc_info.commandBufferCount = 1;
 
-    auto find_memory_type = [&physical_dev](uint32_t type_filter, vk::MemoryPropertyFlags properties) -> uint32_t {
-        auto mem_properties = physical_dev.getMemoryProperties();
+    auto buffers = dev.allocateCommandBuffers(alloc_info);
+    auto& buf = buffers[0];
 
-        for(size_t i = 0; i < mem_properties.memoryTypeCount; i++)
-            if(type_filter & (1 << i) && (mem_properties.memoryTypes[i].propertyFlags & properties) == properties)
-                return i;
+    vk::CommandBufferBeginInfo begin_info{};
+    begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
 
-        throw std::runtime_error("Couldn't find suitable memory type");
-    };
+    buf.begin(begin_info);
 
-    vk::MemoryAllocateInfo alloc_info{};
-    alloc_info.allocationSize = requirements.size;
-    alloc_info.memoryTypeIndex = find_memory_type(requirements.memoryTypeBits, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    vk::BufferCopy copy_region{};
+    copy_region.srcOffset = 0;
+    copy_region.dstOffset = 0;
+    copy_region.size = size;
 
-    this->memory = dev.allocateMemory(alloc_info);
+    buf.copyBuffer(this->staging_buf.handle(), this->vertex_buf.handle(), {copy_region});
+    buf.end();
 
-    dev.bindBufferMemory(buffer, memory, 0);
+    vk::SubmitInfo submit_info{};
+    submit_info.commandBufferCount = 1;
+    submit_info.pCommandBuffers = &buf;
 
-    void* data = dev.mapMemory(memory, 0, create_info.size);
-    memcpy(data, vertices.data(), (size_t)create_info.size);
-    dev.unmapMemory(memory);
+    queue.submit({submit_info}, {nullptr});
+    queue.waitIdle();
+    dev.freeCommandBuffers(cmd, buffers);
 }
 
 void vertex_buffer::clean(){
-    this->dev.destroyBuffer(this->buffer);
-    this->dev.freeMemory(this->memory);
+    this->staging_buf.clean();
+    this->vertex_buf.clean();
 }
 
 #pragma endregion

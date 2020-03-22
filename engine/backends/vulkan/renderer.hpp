@@ -2,6 +2,7 @@
 
 #include <vulkan/vulkan.hpp>
 
+#include "memory.hpp"
 #include "shader.hpp"
 #include "swap_chain.hpp"
 #include "../../core/format.hpp"
@@ -42,20 +43,26 @@ namespace benzene::vulkan
 
     class vertex_buffer {
         public:
-        vertex_buffer(): dev{nullptr}, physical_dev{nullptr}, buffer{nullptr}, memory{nullptr} {}
+        vertex_buffer(): staging_buf{}, vertex_buf{} {}
         vertex_buffer(vk::Device dev, vk::PhysicalDevice physical_dev, std::vector<vertex> verticies);
 
         void clean();
 
-        vk::Buffer& handle(){
-            return this->buffer;
+        vk::Buffer& staging_buffer_handle(){
+            return staging_buf.handle();
         }
+
+        vk::Buffer& vertex_buffer_handle(){
+            return vertex_buf.handle();
+        }
+
+        void copy(vk::Queue queue, vk::CommandPool cmd);
 
         private:
         vk::Device dev;
-        vk::PhysicalDevice physical_dev;
-        vk::Buffer buffer;
-        vk::DeviceMemory memory;
+        buffer staging_buf;
+        buffer vertex_buf;
+        size_t size;
     };
 
     class render_pass {

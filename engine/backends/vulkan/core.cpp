@@ -71,6 +71,8 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     };
 
     this->vertices = vertex_buffer{this->logical_device, this->physical_device, {raw_vertices}};
+    this->vertices.copy(this->graphics_queue, command_pool);
+
 
     this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
     this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
@@ -444,7 +446,7 @@ void backend::create_renderer(){
         scissor.offset = vk::Offset2D{0, 0};
         scissor.extent = this->swapchain.get_extent();
 
-        this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
+        this->command_buffers[i].bindVertexBuffers(0, {vertices.vertex_buffer_handle()}, {0});
         this->command_buffers[i].setViewport(0, {viewport});
         this->command_buffers[i].setScissor(0, {scissor});
 
