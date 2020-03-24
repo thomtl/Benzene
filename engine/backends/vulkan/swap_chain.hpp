@@ -1,20 +1,14 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <vulkan/vulkan.hpp>
-
-#include <algorithm>
-#include <vector>
+#include "base.hpp"
 
 namespace benzene::vulkan
 {
-    struct swapchain_support_details {
-        swapchain_support_details(vk::PhysicalDevice* dev, vk::SurfaceKHR* surface){
-            this->cap = dev->getSurfaceCapabilitiesKHR(*surface);
-            this->formats = dev->getSurfaceFormatsKHR(*surface);
-            this->present_modes = dev->getSurfacePresentModesKHR(*surface);
+    struct SwapchainSupportDetails {
+        SwapchainSupportDetails(Instance* instance){
+            this->cap = instance->gpu.getSurfaceCapabilitiesKHR(instance->surface);
+            this->formats = instance->gpu.getSurfaceFormatsKHR(instance->surface);
+            this->present_modes = instance->gpu.getSurfacePresentModesKHR(instance->surface);
         }
 
         vk::SurfaceFormatKHR choose_format(){
@@ -53,16 +47,16 @@ namespace benzene::vulkan
         std::vector<vk::PresentModeKHR> present_modes;   
     };
 
-    class swap_chain {
+    class SwapChain {
         public:
-        swap_chain(): chain{nullptr} {}
-        swap_chain(vk::Device* dev, vk::PhysicalDevice* physical_dev, vk::SurfaceKHR* surface, uint32_t graphics_queue_id, uint32_t presentation_queue_id, GLFWwindow* win): dev{dev} {
-            swapchain_support_details details{physical_dev, surface};
+        SwapChain(): chain{nullptr} {}
+        SwapChain(Instance* instance, uint32_t graphics_queue_id, uint32_t presentation_queue_id): instance{instance} {
+            SwapchainSupportDetails details{instance};
 
             auto surface_format = details.choose_format();
             this->format = surface_format.format;
             auto mode = details.choose_present_mode();
-            this->extent = details.choose_swap_extent(win);
+            this->extent = details.choose_swap_extent(instance->window);
 
             auto image_count = details.cap.minImageCount + 1;
             if(details.cap.maxImageCount > 0 && image_count > details.cap.maxImageCount)
@@ -70,7 +64,7 @@ namespace benzene::vulkan
 
             vk::SwapchainCreateInfoKHR create_info{};
             create_info.minImageCount = image_count;
-            create_info.surface = *surface;
+            create_info.surface = instance->surface;
             create_info.imageFormat = format;
             create_info.imageColorSpace = surface_format.colorSpace;
             create_info.imageExtent = extent;
@@ -93,9 +87,9 @@ namespace benzene::vulkan
             create_info.clipped = true;
             create_info.oldSwapchain = {nullptr};
 
-            this->chain = dev->createSwapchainKHR(create_info);
+            this->chain = instance->device.createSwapchainKHR(create_info);
 
-            this->images = dev->getSwapchainImagesKHR(chain);
+            this->images = instance->device.getSwapchainImagesKHR(chain);
 
             this->image_views = std::vector<vk::ImageView>{};
             for(size_t i = 0; i < images.size(); i++){
@@ -114,15 +108,15 @@ namespace benzene::vulkan
                 create_info.subresourceRange.baseArrayLayer = 0;
                 create_info.subresourceRange.layerCount = 1;
 
-                this->image_views.push_back(this->dev->createImageView(create_info));
+                this->image_views.push_back(instance->device.createImageView(create_info));
             }
         }
 
         void clean(){
             for(auto& view : image_views)
-                dev->destroyImageView(view);
+                instance->device.destroyImageView(view);
 
-            dev->destroySwapchainKHR(this->chain);
+            instance->device.destroySwapchainKHR(this->chain);
         }
 
         vk::Format get_format() const {
@@ -151,7 +145,7 @@ namespace benzene::vulkan
         std::vector<vk::Image> images;
         vk::Format format;
         vk::Extent2D extent;
-        vk::Device* dev;
+        Instance* instance;
         vk::SwapchainKHR chain;
     };
 } // namespace benzene::vulkan

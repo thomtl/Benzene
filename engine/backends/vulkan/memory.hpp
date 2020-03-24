@@ -1,32 +1,27 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-#include "libs/vk_mem_alloc.hpp"
+#include "base.hpp"
 
 namespace benzene::vulkan
 {
-    class buffer {
+    class Buffer {
         public:
-        buffer(): allocator{nullptr}, buf{nullptr}, allocation{nullptr} {}
-        buffer(vma::Allocator allocator, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): allocator{allocator} {
+        Buffer(): instance{nullptr}, buf{nullptr}, allocation{nullptr} {}
+        Buffer(Instance* instance, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): instance{instance} {
             vk::BufferCreateInfo buffer_info{};
             buffer_info.size = size;
             buffer_info.usage = usage;
             buffer_info.sharingMode = vk::SharingMode::eExclusive;
             
-            //auto requirements = dev.getBufferMemoryRequirements(this->buf);
-            
             vma::AllocationCreateInfo alloc_info{};
             alloc_info.usage = vma::MemoryUsage::eUnknown;
             alloc_info.requiredFlags = properties;
-            //alloc_info.memoryTypeBits = requirements.memoryTypeBits;
 
-
-            std::tie(buf, allocation) = allocator.createBuffer(buffer_info, alloc_info);
+            std::tie(buf, allocation) = instance->allocator.createBuffer(buffer_info, alloc_info);
         }
 
         void clean(){
-            allocator.destroyBuffer(buf, allocation);
+            instance->allocator.destroyBuffer(buf, allocation);
         }
 
         vk::Buffer& handle(){
@@ -37,12 +32,8 @@ namespace benzene::vulkan
             return allocation;
         }
 
-        /*vk::DeviceMemory& memory_handle(){
-            return mem;
-        }*/
-
         private:
-        vma::Allocator allocator;
+        Instance* instance;
         vk::Buffer buf;
         vma::Allocation allocation;
     };

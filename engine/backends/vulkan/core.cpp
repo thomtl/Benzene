@@ -4,7 +4,7 @@
 
 using namespace benzene::vulkan;
 
-const std::vector<vertex> raw_vertices = {
+const std::vector<Vertex> raw_vertices = {
     {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
     {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
     {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
@@ -17,7 +17,8 @@ const std::vector<uint16_t> raw_indices = {
 
 #pragma region backend
 
-backend::backend(const char* application_name, GLFWwindow* window): window{window}, current_frame{0} {
+Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
+    this->instance.window = window;
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layer but unsupported");
 
@@ -57,7 +58,7 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
         create_info.pNext = &instance_debug_info;
     }
 
-    if(vk::createInstance(&create_info, nullptr, &this->instance) != vk::Result::eSuccess)
+    if(vk::createInstance(&create_info, nullptr, &this->instance.instance) != vk::Result::eSuccess)
         throw std::runtime_error("Couldn't make instance");
             
     print("vulkan: Initialized instance with {} extension(s) and {} validation layer(s)\n", create_info.enabledExtensionCount, create_info.enabledLayerCount);
@@ -65,27 +66,27 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     if constexpr (enable_validation)
         this->init_debug_messenger();
 
-    if((vk::Result)glfwCreateWindowSurface(this->instance, window, nullptr, (VkSurfaceKHR*)&this->surface) != vk::Result::eSuccess)
+    if((vk::Result)glfwCreateWindowSurface(this->instance.instance, window, nullptr, (VkSurfaceKHR*)&this->instance.surface) != vk::Result::eSuccess)
         throw std::runtime_error("Couldn't create window surface");
 
     this->init_physical_device();
     this->init_logical_device();
 
     vma::AllocatorCreateInfo allocator_create_info{};
-    allocator_create_info.device = this->logical_device;
-    allocator_create_info.physicalDevice = this->physical_device;
+    allocator_create_info.device = this->instance.device;
+    allocator_create_info.physicalDevice = this->instance.gpu;
 
-    this->allocator = vma::createAllocator(allocator_create_info);
+    this->instance.allocator = vma::createAllocator(allocator_create_info);
 
     vk::CommandPoolCreateInfo pool_info{};
     pool_info.queueFamilyIndex = graphics_queue_id;
-    this->command_pool = this->logical_device.createCommandPool(pool_info);
+    this->instance.command_pool = this->instance.device.createCommandPool(pool_info);
 
-    this->vertices = vertex_buffer{this->logical_device, this->allocator, this->graphics_queue, command_pool, {raw_vertices}};
-    this->indices = index_buffer{this->logical_device, this->allocator, this->graphics_queue, command_pool, {raw_indices}};
+    this->vertices = VertexBuffer{&this->instance, instance.graphics(), {raw_vertices}};
+    this->indices = IndexBuffer{&this->instance, instance.graphics(), {raw_indices}};
 
-    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
-    this->pipeline = render_pipeline{this->logical_device, &this->swapchain};
+    this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
+    this->pipeline = RenderPipeline{&this->instance, &this->swapchain};
     this->create_renderer();
 
     this->image_available.resize(max_frames_in_flight);
@@ -97,15 +98,15 @@ backend::backend(const char* application_name, GLFWwindow* window): window{windo
     vk::FenceCreateInfo fence_info{};
     fence_info.flags = vk::FenceCreateFlagBits::eSignaled;
     for(size_t i = 0; i < max_frames_in_flight; i++){
-        this->image_available[i] = this->logical_device.createSemaphore(semaphore_info);
-        this->render_finished[i] = this->logical_device.createSemaphore(semaphore_info);
-        this->in_flight_fences[i] = this->logical_device.createFence(fence_info);
+        this->image_available[i] = this->instance.device.createSemaphore(semaphore_info);
+        this->render_finished[i] = this->instance.device.createSemaphore(semaphore_info);
+        this->in_flight_fences[i] = this->instance.device.createFence(fence_info);
     }
 
     print("vulkan: Initialized Vulkan backend\n");
 }
 
-backend::~backend(){
+Backend::~Backend(){
     this->cleanup_renderer();
 
     this->vertices.clean();
@@ -114,27 +115,27 @@ backend::~backend(){
     this->pipeline.clean();
 
     for(size_t i = 0; i < max_frames_in_flight; i++){
-        this->logical_device.destroySemaphore(this->render_finished[i]);
-        this->logical_device.destroySemaphore(this->image_available[i]);
-        this->logical_device.destroyFence(this->in_flight_fences[i]);
+        this->instance.device.destroySemaphore(this->render_finished[i]);
+        this->instance.device.destroySemaphore(this->image_available[i]);
+        this->instance.device.destroyFence(this->in_flight_fences[i]);
     }
 
-    this->logical_device.destroyCommandPool(this->command_pool);
+    this->instance.device.destroyCommandPool(this->instance.command_pool);
 
-    this->allocator.destroy();
+    this->instance.allocator.destroy();
     
-    this->logical_device.destroy();
+    this->instance.device.destroy();
     if constexpr (enable_validation)
-        extra_api::DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
-    this->instance.destroySurfaceKHR(this->surface);
-    this->instance.destroy();
+        extra_api::DestroyDebugUtilsMessengerEXT(this->instance.instance, debug_messenger, nullptr);
+    this->instance.instance.destroySurfaceKHR(this->instance.surface);
+    this->instance.instance.destroy();
 }
 
-void backend::frame_update(){
-    this->logical_device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
+void Backend::frame_update(){
+    this->instance.device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
     vk::ResultValue<uint32_t> image_index{vk::Result::eSuccess, 0};
     try {
-        image_index = this->logical_device.acquireNextImageKHR(this->swapchain.handle(), UINT64_MAX, image_available[this->current_frame], {nullptr});
+        image_index = this->instance.device.acquireNextImageKHR(this->swapchain.handle(), UINT64_MAX, image_available[this->current_frame], {nullptr});
     } catch(vk::OutOfDateKHRError& error) { 
         this->recreate_renderer();
         return;
@@ -143,7 +144,7 @@ void backend::frame_update(){
         throw std::runtime_error("Failed to acquire swapchain image");
     
     if(images_in_flight[image_index.value] != vk::Fence{nullptr})
-        this->logical_device.waitForFences({this->images_in_flight[image_index.value]}, true, UINT64_MAX);
+        this->instance.device.waitForFences({this->images_in_flight[image_index.value]}, true, UINT64_MAX);
 
     images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
 
@@ -162,8 +163,8 @@ void backend::frame_update(){
     submit_info.signalSemaphoreCount = 1;
     submit_info.pSignalSemaphores = signal_semaphores;
 
-    this->logical_device.resetFences({this->in_flight_fences[this->current_frame]});
-    this->graphics_queue.submit({submit_info}, this->in_flight_fences[this->current_frame]);
+    this->instance.device.resetFences({this->in_flight_fences[this->current_frame]});
+    this->instance.graphics().submit({submit_info}, this->in_flight_fences[this->current_frame]);
 
 
     vk::PresentInfoKHR present_info{};
@@ -178,7 +179,7 @@ void backend::frame_update(){
 
     vk::Result result;
     try {
-        result = this->presentation_queue.presentKHR(present_info);
+        result = this->instance.present().presentKHR(present_info);
     } catch(vk::OutOfDateKHRError& error){
         this->recreate_renderer();
     }
@@ -192,12 +193,12 @@ void backend::frame_update(){
     this->current_frame = (this->current_frame + 1) % max_frames_in_flight;
 }
 
-void backend::end_run(){
-    this->logical_device.waitIdle();
+void Backend::end_run(){
+    this->instance.device.waitIdle();
 }
 
-VKAPI_ATTR VkBool32 VKAPI_CALL backend::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data){
-    [[maybe_unused]] auto& self = *(backend*)user_data;
+VKAPI_ATTR VkBool32 VKAPI_CALL Backend::debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data){
+    [[maybe_unused]] auto& self = *(Backend*)user_data;
     auto severity = (vk::DebugUtilsMessageSeverityFlagBitsEXT)_severity;
     auto type = (vk::DebugUtilsMessageTypeFlagsEXT)_type;
 
@@ -206,7 +207,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL backend::debug_callback(VkDebugUtilsMessageSeveri
     return VK_FALSE;
 }
 
-vk::DebugUtilsMessengerCreateInfoEXT backend::make_debug_messenger_create_info(){
+vk::DebugUtilsMessengerCreateInfoEXT Backend::make_debug_messenger_create_info(){
     vk::DebugUtilsMessengerCreateInfoEXT create_info{};
     create_info.messageSeverity = vk::DebugUtilsMessageSeverityFlagBitsEXT::eError | vk::DebugUtilsMessageSeverityFlagBitsEXT::eWarning | vk::DebugUtilsMessageSeverityFlagBitsEXT::eVerbose; //  | vk::DebugUtilsMessageSeverityFlagBitsEXT::eInfo
     create_info.messageType = vk::DebugUtilsMessageTypeFlagBitsEXT::eGeneral | vk::DebugUtilsMessageTypeFlagBitsEXT::ePerformance | vk::DebugUtilsMessageTypeFlagBitsEXT::eValidation;
@@ -216,23 +217,23 @@ vk::DebugUtilsMessengerCreateInfoEXT backend::make_debug_messenger_create_info()
     return create_info;
 }
 
-void backend::init_debug_messenger(){
+void Backend::init_debug_messenger(){
     auto create_info = this->make_debug_messenger_create_info();
 
-    if(extra_api::CreateDebugUtilsMessengerEXT(instance, &create_info, nullptr, &debug_messenger) != vk::Result::eSuccess)
+    if(extra_api::CreateDebugUtilsMessengerEXT(instance.instance, &create_info, nullptr, &debug_messenger) != vk::Result::eSuccess)
         throw std::runtime_error("Failed to create debug_messenger");
 }
 
-void backend::init_logical_device(){
-    auto graphics_queue_id = this->get_queue_index(this->physical_device, [](const auto& family, [[maybe_unused]] const auto i){
+void Backend::init_logical_device(){
+    auto graphics_queue_id = this->get_queue_index(this->instance.gpu, [](const auto& family, [[maybe_unused]] const auto i){
         return family.queueFlags & vk::QueueFlagBits::eGraphics;
     });
     if(!graphics_queue_id)
         throw std::runtime_error("Didn't find graphics queue id");
     this->graphics_queue_id = *graphics_queue_id;
 
-    auto presentation_queue_id = this->get_queue_index(this->physical_device, [this]([[maybe_unused]] const auto& family, const auto i){
-        return this->physical_device.getSurfaceSupportKHR(i, this->surface);
+    auto presentation_queue_id = this->get_queue_index(this->instance.gpu, [this]([[maybe_unused]] const auto& family, const auto i){
+        return this->instance.gpu.getSurfaceSupportKHR(i, this->instance.surface);
     });
     if(!graphics_queue_id)
         throw std::runtime_error("Didn't find graphics queue id");
@@ -267,12 +268,12 @@ void backend::init_logical_device(){
         create_info.ppEnabledLayerNames = validation_layers.data();
     }
 
-    this->logical_device = this->physical_device.createDevice(create_info);
-    this->graphics_queue = this->logical_device.getQueue(this->graphics_queue_id, 0); // We only have 1 graphics queue
-    this->presentation_queue = this->logical_device.getQueue(this->presentation_queue_id, 0); // We only have 1 graphics queue
+    this->instance.device = this->instance.gpu.createDevice(create_info);
+    this->instance.graphics = {this->graphics_queue_id, this->instance.device.getQueue(this->graphics_queue_id, 0)}; // We only have 1 graphics queue
+    this->instance.present = {this->graphics_queue_id, this->instance.device.getQueue(this->presentation_queue_id, 0)}; // We only have 1 graphics queue
 }
 
-std::vector<const char*> backend::get_extensions(){
+std::vector<const char*> Backend::get_extensions(){
     uint32_t glfw_extension_count = 0;
     const auto** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
@@ -284,7 +285,7 @@ std::vector<const char*> backend::get_extensions(){
     return extensions;
 }
 
-bool backend::check_validation_layer_support(){
+bool Backend::check_validation_layer_support(){
     auto supported_layers = vk::enumerateInstanceLayerProperties();
             
     for(const auto* layer : validation_layers){
@@ -299,8 +300,8 @@ bool backend::check_validation_layer_support(){
     return true;
 }
 
-void backend::init_physical_device(){
-    std::vector<vk::PhysicalDevice> physical_devices = this->instance.enumeratePhysicalDevices();
+void Backend::init_physical_device(){
+    std::vector<vk::PhysicalDevice> physical_devices = this->instance.instance.enumeratePhysicalDevices();
     if(physical_devices.size() == 0)
         throw std::runtime_error("Couldn't find any GPUs with vulkan support");
     
@@ -313,7 +314,7 @@ void backend::init_physical_device(){
                 return false; // Make sure we have a graphics queue
 
             if(!this->get_queue_index(dev, [this, &dev]([[maybe_unused]] const auto& family, const auto i){
-                return dev.getSurfaceSupportKHR(i, this->surface);
+                return dev.getSurfaceSupportKHR(i, this->instance.surface);
             }).has_value())
                 return false; // Make sure we have a presentation queue
 
@@ -373,35 +374,35 @@ void backend::init_physical_device(){
             print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {}] -> Score {}\n", vk::to_string(gpu.getProperties().deviceType), gpu.getProperties().deviceName, gpu.getProperties().deviceID, gpu.getProperties().vendorID, spec_version{gpu.getProperties().driverVersion}, calculate_score(gpu));
     }
 
-    this->physical_device = suitable_devices[0]; // Higest rated device
+    this->instance.gpu = suitable_devices[0]; // Higest rated device
 }
 
-void backend::cleanup_renderer(){
+void Backend::cleanup_renderer(){
     for(auto& fb : framebuffers)
-        logical_device.destroyFramebuffer(fb);
+        this->instance.device.destroyFramebuffer(fb);
 
-    this->logical_device.freeCommandBuffers(this->command_pool, this->command_buffers);
+    this->instance.device.freeCommandBuffers(this->instance.command_pool, this->command_buffers);
 
     this->swapchain.clean();
 }
 
-void backend::recreate_renderer(){
+void Backend::recreate_renderer(){
     int width = 0, height = 0;
-    glfwGetFramebufferSize(this->window, &width, &height);
+    glfwGetFramebufferSize(this->instance.window, &width, &height);
     while(!width || !height){
-        glfwGetFramebufferSize(this->window, &width, &height);
+        glfwGetFramebufferSize(this->instance.window, &width, &height);
         glfwWaitEvents();
     }
 
-    this->logical_device.waitIdle();
+    this->instance.device.waitIdle();
     this->cleanup_renderer();
 
-    this->swapchain = swap_chain{&this->logical_device, &this->physical_device, &this->surface, this->graphics_queue_id, this->presentation_queue_id, this->window};
-    // Pipeline does not have to be recreated since its modified state is dynamic
+    this->swapchain = SwapChain{&this->instance, this->graphics_queue_id, this->presentation_queue_id};
+    // Pipeline does not have to be recreated since its modified state(Viewport / Scissor) is dynamic
     this->create_renderer();
 }
 
-void backend::create_renderer(){
+void Backend::create_renderer(){
     this->framebuffers.clear();
     for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
         vk::ImageView attachments[] = {
@@ -416,15 +417,15 @@ void backend::create_renderer(){
         framebuffer_create_info.height = this->swapchain.get_extent().height;
         framebuffer_create_info.layers = 1;
 
-        framebuffers.push_back(this->logical_device.createFramebuffer(framebuffer_create_info));
+        framebuffers.push_back(this->instance.device.createFramebuffer(framebuffer_create_info));
     }
     
     vk::CommandBufferAllocateInfo allocate_info{};
-    allocate_info.commandPool = this->command_pool;
+    allocate_info.commandPool = this->instance.command_pool;
     allocate_info.level = vk::CommandBufferLevel::ePrimary;
     allocate_info.commandBufferCount = this->framebuffers.size();
 
-    this->command_buffers = this->logical_device.allocateCommandBuffers(allocate_info);
+    this->command_buffers = this->instance.device.allocateCommandBuffers(allocate_info);
 
     for(size_t i = 0; i < this->command_buffers.size(); i++){
         vk::CommandBufferBeginInfo begin_info{};

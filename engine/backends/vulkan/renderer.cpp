@@ -2,7 +2,7 @@
 
 using namespace benzene::vulkan;
 
-static void copy_buffer(buffer& src, buffer& dst, vk::Device dev, vk::Queue queue, vk::CommandPool cmd, size_t size){
+static void copy_buffer(Buffer& src, Buffer& dst, vk::Device dev, vk::Queue queue, vk::CommandPool cmd, size_t size){
     vk::CommandBufferAllocateInfo alloc_info{};
     alloc_info.level = vk::CommandBufferLevel::ePrimary;
     alloc_info.commandPool = cmd;
@@ -35,22 +35,22 @@ static void copy_buffer(buffer& src, buffer& dst, vk::Device dev, vk::Queue queu
 
 #pragma region vertex_buffer
 
-vertex_buffer::vertex_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices) {
-    size_t size = sizeof(vertex) * vertices.size();
-    auto staging_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+VertexBuffer::VertexBuffer(Instance* instance, vk::Queue queue, std::vector<Vertex> vertices): instance{instance} {
+    size_t size = sizeof(Vertex) * vertices.size();
+    auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-    void* data = allocator.mapMemory(staging_buf.allocation_handle());
+    void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
     memcpy(data, vertices.data(), size);
-    allocator.unmapMemory(staging_buf.allocation_handle());
+    instance->allocator.unmapMemory(staging_buf.allocation_handle());
 
-    this->vertex_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+    this->vertex_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
-    copy_buffer(staging_buf, vertex_buf, dev, queue, cmd, size);
+    copy_buffer(staging_buf, vertex_buf, instance->device, queue, instance->command_pool, size);
 
     staging_buf.clean();
 }
 
-void vertex_buffer::clean(){
+void VertexBuffer::clean(){
     this->vertex_buf.clean();
 }
 
@@ -58,22 +58,22 @@ void vertex_buffer::clean(){
 
 #pragma region index_buffer
 
-index_buffer::index_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices) {
+IndexBuffer::IndexBuffer(Instance* instance, vk::Queue queue, std::vector<uint16_t> vertices): instance{instance} {
     size_t size = sizeof(uint16_t) * vertices.size();
-    auto staging_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
+    auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-    void* data = allocator.mapMemory(staging_buf.allocation_handle());
+    void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
     memcpy(data, vertices.data(), size);
-    allocator.unmapMemory(staging_buf.allocation_handle());
+    instance->allocator.unmapMemory(staging_buf.allocation_handle());
 
-    this->index_buf = buffer{allocator, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+    this->index_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
-    copy_buffer(staging_buf, index_buf, dev, queue, cmd, size);
+    copy_buffer(staging_buf, index_buf, instance->device, queue, instance->command_pool, size);
 
     staging_buf.clean();
 }
 
-void index_buffer::clean(){
+void IndexBuffer::clean(){
     this->index_buf.clean();
 }
 
@@ -81,9 +81,9 @@ void index_buffer::clean(){
 
 #pragma region render_pass
 
-render_pass::render_pass(): renderpass{nullptr}, device{nullptr}, swapchain{nullptr} {}
-render_pass::render_pass(vk::Device device, swap_chain* swapchain): device{device}, swapchain{swapchain} {
-     vk::AttachmentDescription colour_attachment{};
+RenderPass::RenderPass(): instance{nullptr},renderpass{nullptr}, swapchain{nullptr} {}
+RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{instance}, swapchain{swapchain} {
+    vk::AttachmentDescription colour_attachment{};
     colour_attachment.format = swapchain->get_format();
     colour_attachment.samples = vk::SampleCountFlagBits::e1;
     colour_attachment.loadOp = vk::AttachmentLoadOp::eClear;
@@ -119,14 +119,14 @@ render_pass::render_pass(vk::Device device, swap_chain* swapchain): device{devic
     render_pass_create_info.dependencyCount = 1;
     render_pass_create_info.pDependencies = &dependency;
 
-    this->renderpass = device.createRenderPass(render_pass_create_info);
+    this->renderpass = instance->device.createRenderPass(render_pass_create_info);
 }
 
-void render_pass::clean(){
-    this->device.destroyRenderPass(this->renderpass);
+void RenderPass::clean(){
+    this->instance->device.destroyRenderPass(this->renderpass);
 }
 
-vk::RenderPass& render_pass::handle(){
+vk::RenderPass& RenderPass::handle(){
     return renderpass;
 }
 
@@ -134,13 +134,13 @@ vk::RenderPass& render_pass::handle(){
 
 #pragma region pipeline
 
-render_pipeline::render_pipeline(): device{nullptr}, swapchain{nullptr}, renderpass{}, layout{nullptr}, pipeline{nullptr} {}
-render_pipeline::render_pipeline(vk::Device device, swap_chain* swapchain): device{device}, swapchain{swapchain} {
+RenderPipeline::RenderPipeline(): instance{nullptr}, swapchain{nullptr}, renderpass{}, layout{nullptr}, pipeline{nullptr} {}
+RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instance{instance}, swapchain{swapchain} {
     auto vert_code = benzene::read_binary_file("../engine/shaders/vertex.spv");
-    shader vertex{device, vert_code};
+    Shader vertex{instance, vert_code};
 
     auto frag_code = benzene::read_binary_file("../engine/shaders/fragment.spv");
-    shader fragment{device, frag_code};
+    Shader fragment{instance, frag_code};
 
     vk::PipelineShaderStageCreateInfo vert_info{};
     vert_info.stage = vk::ShaderStageFlagBits::eVertex;
@@ -154,8 +154,8 @@ render_pipeline::render_pipeline(vk::Device device, swap_chain* swapchain): devi
 
     vk::PipelineShaderStageCreateInfo shader_stages[] = {vert_info, frag_info};
 
-    auto binding_description = vertex::get_binding_description();
-    auto attribute_descriptions = vertex::get_attribute_descriptions();
+    auto binding_description = Vertex::get_binding_description();
+    auto attribute_descriptions = Vertex::get_attribute_descriptions();
 
     vk::PipelineVertexInputStateCreateInfo vertex_input_create_info{};
     vertex_input_create_info.vertexBindingDescriptionCount = 1;
@@ -220,9 +220,9 @@ render_pipeline::render_pipeline(vk::Device device, swap_chain* swapchain): devi
     layout_create_info.pushConstantRangeCount = 0;
     layout_create_info.pPushConstantRanges = nullptr;
 
-    this->layout = device.createPipelineLayout(layout_create_info);
+    this->layout = instance->device.createPipelineLayout(layout_create_info);
             
-    this->renderpass = render_pass{device, swapchain};
+    this->renderpass = RenderPass{instance, swapchain};
 
     vk::GraphicsPipelineCreateInfo pipeline_create_info{};
     pipeline_create_info.stageCount = 2;
@@ -240,16 +240,16 @@ render_pipeline::render_pipeline(vk::Device device, swap_chain* swapchain): devi
     pipeline_create_info.basePipelineHandle = {nullptr};
     pipeline_create_info.basePipelineIndex = -1;
 
-    this->pipeline = device.createGraphicsPipeline({nullptr}, pipeline_create_info);
+    this->pipeline = instance->device.createGraphicsPipeline({nullptr}, pipeline_create_info);
             
 
     vertex.clean();
     fragment.clean();
 }
 
-void render_pipeline::clean(){
-    device.destroyPipeline(this->pipeline);
-    device.destroyPipelineLayout(this->layout);
+void RenderPipeline::clean(){
+    instance->device.destroyPipeline(this->pipeline);
+    instance->device.destroyPipelineLayout(this->layout);
     renderpass.clean();
 }
 

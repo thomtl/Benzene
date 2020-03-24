@@ -18,10 +18,10 @@ namespace benzene
         virtual void end_run() = 0;
     };
 
-    class instance {
+    class Instance {
         public:
-        instance(const char* application_name, size_t width, size_t height);
-        ~instance();
+        Instance(const char* application_name, size_t width, size_t height);
+        ~Instance();
 
         void run(std::function<void(void)> functor);
 

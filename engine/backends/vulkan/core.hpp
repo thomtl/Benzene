@@ -1,20 +1,6 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
-
-#include <vulkan/vulkan.hpp>
-
-#include <stdexcept>
-#include <vector>
-#include <array>
-#include <algorithm>
-
-#include <benzene/benzene.hpp>
-
-#include "libs/vk_mem_alloc.hpp"
-#include "../../core/format.hpp"
-#include "../../core/utils.hpp"
+#include "base.hpp"
 #include "extra_api.hpp"
 #include "swap_chain.hpp"
 #include "renderer.hpp"
@@ -49,14 +35,14 @@ namespace benzene::vulkan {
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
-    constexpr size_t max_frames_in_flight = 2;
+    constexpr size_t max_frames_in_flight = 15;
 
     
 
-    class backend : public IBackend {
+    class Backend : public IBackend {
         public:
-        backend(const char* application_name, GLFWwindow* window);
-        ~backend();
+        Backend(const char* application_name, GLFWwindow* window);
+        ~Backend();
 
         void frame_update();
         void end_run();
@@ -90,30 +76,22 @@ namespace benzene::vulkan {
         void create_renderer();
         void recreate_renderer();
 
-        GLFWwindow* window;
+        Instance instance; 
+
         bool framebuffer_resized;
         size_t current_frame;
-        vertex_buffer vertices;
-        index_buffer indices;
+        VertexBuffer vertices;
+        IndexBuffer indices;
         std::vector<vk::Semaphore> image_available, render_finished;
         std::vector<vk::Fence> in_flight_fences, images_in_flight;
-        vk::CommandPool command_pool;
         std::vector<vk::CommandBuffer> command_buffers;
         std::vector<vk::Framebuffer> framebuffers;
         vk::DebugUtilsMessengerEXT debug_messenger;
-        vk::Instance instance;
-        vk::SurfaceKHR surface;
-        vk::PhysicalDevice physical_device;
-        vk::Device logical_device;
 
-        vma::Allocator allocator;
-
-        swap_chain swapchain;
-        render_pipeline pipeline;
-
+        SwapChain swapchain;
+        RenderPipeline pipeline;
 
 
         uint32_t graphics_queue_id, presentation_queue_id;
-        vk::Queue graphics_queue, presentation_queue;
     };
 } // namespace benzene::vulkan

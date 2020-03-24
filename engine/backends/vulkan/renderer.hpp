@@ -1,26 +1,22 @@
 #pragma once
 
-#include <vulkan/vulkan.hpp>
-
+#include "base.hpp"
 #include "memory.hpp"
 #include "shader.hpp"
 #include "swap_chain.hpp"
-#include "../../core/format.hpp"
-#include "../../core/utils.hpp"
 
 #include <glm/glm.hpp>
-#include <array>
 
 namespace benzene::vulkan
 {
-    struct vertex {
+    struct Vertex {
         glm::vec2 pos;
         glm::vec3 colour;
 
         static vk::VertexInputBindingDescription get_binding_description(){
             vk::VertexInputBindingDescription info{};
             info.binding = 0;
-            info.stride = sizeof(vertex);
+            info.stride = sizeof(Vertex);
             info.inputRate = vk::VertexInputRate::eVertex;
             return info;
         }
@@ -30,21 +26,21 @@ namespace benzene::vulkan
             desc[0].binding = 0;
             desc[0].location = 0;
             desc[0].format = vk::Format::eR32G32Sfloat;
-            desc[0].offset = offsetof(vertex, pos);
+            desc[0].offset = offsetof(Vertex, pos);
 
             desc[1].binding = 0;
             desc[1].location = 1;
             desc[1].format = vk::Format::eR32G32B32Sfloat;
-            desc[1].offset = offsetof(vertex, colour);
+            desc[1].offset = offsetof(Vertex, colour);
 
             return desc;
         }
     };
 
-    class vertex_buffer {
+    class VertexBuffer {
         public:
-        vertex_buffer(): vertex_buf{} {}
-        vertex_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<vertex> vertices);
+        VertexBuffer(): instance{nullptr}, vertex_buf{} {}
+        VertexBuffer(Instance* instance, vk::Queue queue, std::vector<Vertex> vertices);
 
         void clean();
 
@@ -53,13 +49,14 @@ namespace benzene::vulkan
         }
 
         private:
-        buffer vertex_buf;
+        Instance* instance;
+        Buffer vertex_buf;
     };
 
-    class index_buffer {
+    class IndexBuffer {
         public:
-        index_buffer(): index_buf{} {}
-        index_buffer(vk::Device dev, vma::Allocator allocator, vk::Queue queue, vk::CommandPool cmd, std::vector<uint16_t> vertices);
+        IndexBuffer(): instance{nullptr}, index_buf{} {}
+        IndexBuffer(Instance* instance, vk::Queue queue, std::vector<uint16_t> vertices);
 
         void clean();
 
@@ -68,29 +65,30 @@ namespace benzene::vulkan
         }
 
         private:
-        buffer index_buf;
+        Instance* instance;
+        Buffer index_buf;
     };
 
-    class render_pass {
+    class RenderPass {
         public:
-        render_pass();
-        render_pass(vk::Device device, swap_chain* swapchain);
+        RenderPass();
+        RenderPass(Instance* instance, SwapChain* swapchain);
 
         void clean();
         vk::RenderPass& handle();
 
         private:
+        Instance* instance;
         vk::RenderPass renderpass;
-        vk::Device device;
-        swap_chain* swapchain;
+        SwapChain* swapchain;
     };
 
-    class render_pipeline {
+    class RenderPipeline {
         public:
-        render_pipeline();
-        render_pipeline(vk::Device device, swap_chain* swapchain);
+        RenderPipeline();
+        RenderPipeline(Instance* instance, SwapChain* swapchain);
 
-        render_pass& get_render_pass(){
+        RenderPass& get_render_pass(){
             return renderpass;
         }
 
@@ -101,10 +99,10 @@ namespace benzene::vulkan
         void clean();
 
         private:
-        vk::Device device;
-        swap_chain* swapchain;
+        Instance* instance;
+        SwapChain* swapchain;
 
-        render_pass renderpass;
+        RenderPass renderpass;
         
         vk::PipelineLayout layout;
         vk::Pipeline pipeline;

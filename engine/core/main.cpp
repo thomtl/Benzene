@@ -4,7 +4,7 @@
 #include "../backends/vulkan/core.hpp"
 #include "format.hpp"
 
-benzene::instance::instance(const char* name, size_t width, size_t height): width{width}, height{height} {
+benzene::Instance::Instance(const char* name, size_t width, size_t height): width{width}, height{height} {
     print("benzene: Starting\n");
 
     glfwInit();
@@ -17,11 +17,11 @@ benzene::instance::instance(const char* name, size_t width, size_t height): widt
         backend.framebuffer_resize_callback(width, height);
     });
     
-    this->backend = std::make_unique<vulkan::backend>(name, this->window);
+    this->backend = std::make_unique<vulkan::Backend>(name, this->window);
     glfwSetWindowUserPointer(window, (void*)&(*this->backend));
 }
 
-void benzene::instance::run(std::function<void(void)> functor){
+void benzene::Instance::run(std::function<void(void)> functor){
     while(!glfwWindowShouldClose(window)){
         glfwPollEvents();
         functor();
@@ -30,7 +30,7 @@ void benzene::instance::run(std::function<void(void)> functor){
     this->backend->end_run();
 }
 
-benzene::instance::~instance(){
+benzene::Instance::~Instance(){
     this->backend.~unique_ptr();
 
     glfwDestroyWindow(window);
