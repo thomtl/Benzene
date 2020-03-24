@@ -2,40 +2,23 @@
 
 using namespace benzene::vulkan;
 
-static void copy_buffer(Buffer& src, Buffer& dst, vk::Device dev, vk::Queue queue, vk::CommandPool cmd, size_t size){
-    vk::CommandBufferAllocateInfo alloc_info{};
-    alloc_info.level = vk::CommandBufferLevel::ePrimary;
-    alloc_info.commandPool = cmd;
-    alloc_info.commandBufferCount = 1;
+static void copy_buffer(Instance* instance, Buffer& src, Buffer& dst, size_t size){
+    CommandBuffer cmd{instance, &instance->graphics};
 
-    auto buffers = dev.allocateCommandBuffers(alloc_info);
-    auto& buf = buffers[0];
+    {
+        std::lock_guard guard{cmd};
+        vk::BufferCopy copy_region{};
+        copy_region.srcOffset = 0;
+        copy_region.dstOffset = 0;
+        copy_region.size = size;
 
-    vk::CommandBufferBeginInfo begin_info{};
-    begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
-
-    buf.begin(begin_info);
-
-    vk::BufferCopy copy_region{};
-    copy_region.srcOffset = 0;
-    copy_region.dstOffset = 0;
-    copy_region.size = size;
-
-    buf.copyBuffer(src.handle(), dst.handle(), {copy_region});
-    buf.end();
-
-    vk::SubmitInfo submit_info{};
-    submit_info.commandBufferCount = 1;
-    submit_info.pCommandBuffers = &buf;
-
-    queue.submit({submit_info}, {nullptr});
-    queue.waitIdle();
-    dev.freeCommandBuffers(cmd, buffers);
+        cmd.handle().copyBuffer(src.handle(), dst.handle(), {copy_region});
+    }
 }
 
 #pragma region vertex_buffer
 
-VertexBuffer::VertexBuffer(Instance* instance, vk::Queue queue, std::vector<Vertex> vertices): instance{instance} {
+VertexBuffer::VertexBuffer(Instance* instance, std::vector<Vertex> vertices): instance{instance} {
     size_t size = sizeof(Vertex) * vertices.size();
     auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
@@ -45,7 +28,7 @@ VertexBuffer::VertexBuffer(Instance* instance, vk::Queue queue, std::vector<Vert
 
     this->vertex_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
-    copy_buffer(staging_buf, vertex_buf, instance->device, queue, instance->command_pool, size);
+    copy_buffer(instance, staging_buf, vertex_buf, size);
 
     staging_buf.clean();
 }
@@ -58,7 +41,7 @@ void VertexBuffer::clean(){
 
 #pragma region index_buffer
 
-IndexBuffer::IndexBuffer(Instance* instance, vk::Queue queue, std::vector<uint16_t> vertices): instance{instance} {
+IndexBuffer::IndexBuffer(Instance* instance, std::vector<uint16_t> vertices): instance{instance} {
     size_t size = sizeof(uint16_t) * vertices.size();
     auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
@@ -68,7 +51,7 @@ IndexBuffer::IndexBuffer(Instance* instance, vk::Queue queue, std::vector<uint16
 
     this->index_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
 
-    copy_buffer(staging_buf, index_buf, instance->device, queue, instance->command_pool, size);
+    copy_buffer(instance, staging_buf, index_buf, size);
 
     staging_buf.clean();
 }

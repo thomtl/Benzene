@@ -40,7 +40,7 @@ namespace benzene::vulkan
     class VertexBuffer {
         public:
         VertexBuffer(): instance{nullptr}, vertex_buf{} {}
-        VertexBuffer(Instance* instance, vk::Queue queue, std::vector<Vertex> vertices);
+        VertexBuffer(Instance* instance, std::vector<Vertex> vertices);
 
         void clean();
 
@@ -56,7 +56,7 @@ namespace benzene::vulkan
     class IndexBuffer {
         public:
         IndexBuffer(): instance{nullptr}, index_buf{} {}
-        IndexBuffer(Instance* instance, vk::Queue queue, std::vector<uint16_t> vertices);
+        IndexBuffer(Instance* instance, std::vector<uint16_t> vertices);
 
         void clean();
 

@@ -82,8 +82,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     pool_info.queueFamilyIndex = graphics_queue_id;
     this->instance.command_pool = this->instance.device.createCommandPool(pool_info);
 
-    this->vertices = VertexBuffer{&this->instance, instance.graphics(), {raw_vertices}};
-    this->indices = IndexBuffer{&this->instance, instance.graphics(), {raw_indices}};
+    this->vertices = VertexBuffer{&this->instance, {raw_vertices}};
+    this->indices = IndexBuffer{&this->instance, {raw_indices}};
 
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain};

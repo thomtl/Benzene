@@ -10,6 +10,7 @@
 #include <vector>
 #include <array>
 #include <algorithm>
+#include <mutex>
 
 #include <benzene/benzene.hpp>
 
@@ -28,9 +29,9 @@ namespace benzene::vulkan
         vk::SurfaceKHR surface;
         vma::Allocator allocator;
 
-        struct queue {
-            queue(): family{0xFFFFFFFF}, handle{nullptr} {}
-            queue(uint32_t family, vk::Queue&& queue): family{family}, handle{std::move(queue)} {}
+        struct Queue {
+            Queue(): family{0xFFFFFFFF}, handle{nullptr} {}
+            Queue(uint32_t family, vk::Queue&& queue): family{family}, handle{std::move(queue)} {}
 
             uint32_t family;
             vk::Queue& operator()(){
@@ -39,6 +40,46 @@ namespace benzene::vulkan
             private:
             vk::Queue handle;
         };
-        queue graphics, present;
+        Queue graphics, present;
+    };
+
+    struct CommandBuffer {
+        CommandBuffer(Instance* instance, Instance::Queue* submit_queue): instance{instance}, submit_queue{submit_queue}, cmd{nullptr} {}
+
+        void lock(){
+            vk::CommandBufferAllocateInfo alloc_info{};
+            alloc_info.level = vk::CommandBufferLevel::ePrimary;
+            alloc_info.commandPool = instance->command_pool;
+            alloc_info.commandBufferCount = 1;
+
+            auto buffers = instance->device.allocateCommandBuffers(alloc_info);
+            this->cmd = buffers[0];
+
+            vk::CommandBufferBeginInfo begin_info{};
+            begin_info.flags = vk::CommandBufferUsageFlagBits::eOneTimeSubmit;
+
+            cmd.begin(begin_info);
+        }
+
+        void unlock(){
+            cmd.end();
+
+            vk::SubmitInfo submit_info{};
+            submit_info.commandBufferCount = 1;
+            submit_info.pCommandBuffers = &cmd;
+            (*submit_queue)().submit({submit_info}, {nullptr});
+            (*submit_queue)().waitIdle();
+
+            instance->device.freeCommandBuffers(instance->command_pool, {cmd});
+        }
+
+        vk::CommandBuffer& handle(){
+            return cmd;
+        }
+
+        private:
+        Instance* instance;
+        Instance::Queue* submit_queue;
+        vk::CommandBuffer cmd;
     };
 } // namespace benzene::vulkan
