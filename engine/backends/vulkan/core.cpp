@@ -20,18 +20,18 @@ const std::vector<uint16_t> raw_indices = {
 Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
     this->instance.window = window;
     if(enable_validation && !this->check_validation_layer_support())
-        throw std::runtime_error("Wanted to enable validation layer but unsupported");
+        throw std::runtime_error("Wanted to enable validation layers but they are unsupported");
 
     if constexpr (debug) {
         auto supported_validation_layers = vk::enumerateInstanceLayerProperties();
-        print("vulkan: Supported validation layers: \n");
+        print("vulkan: Supported global validation layers: \n");
         for(const auto& layer : supported_validation_layers)
             print("\t - {}: {}, [Implementation version: {}, Spec version: {}]\n", layer.layerName, layer.description, layer.implementationVersion, spec_version{layer.specVersion});
     }
 
     auto extensions = vk::enumerateInstanceExtensionProperties();
     if constexpr (debug) {
-        print("vulkan: Supported extensions: \n");
+        print("vulkan: Supported global extensions: \n");
         for(const auto& extension : extensions)
             print("\t - {} v{}\n", extension.extensionName, spec_version{extension.specVersion});
     }
@@ -70,6 +70,18 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
         throw std::runtime_error("Couldn't create window surface");
 
     this->init_physical_device();
+    if constexpr (debug){
+        auto extensions = this->instance.gpu.enumerateDeviceExtensionProperties();
+        print("vulkan: Supported device extensions: \n");
+        for(const auto& extension : extensions)
+            print("\t - {} v{}\n", extension.extensionName, spec_version{extension.specVersion});
+
+        auto supported_validation_layers = this->instance.gpu.enumerateDeviceLayerProperties();
+        print("vulkan: Supported device validation layers: \n");
+        for(const auto& layer : supported_validation_layers)
+            print("\t - {}: {}, [Implementation version: {}, Spec version: {}]\n", layer.layerName, layer.description, layer.implementationVersion, spec_version{layer.specVersion});
+    }
+
     this->init_logical_device();
 
     vma::AllocatorCreateInfo allocator_create_info{};
@@ -204,7 +216,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL Backend::debug_callback(VkDebugUtilsMessageSeveri
 
     print("{} about {} for {}\n", vk::to_string(severity), vk::to_string(type), callback_data->pMessage ?: "No message");
 
-    return VK_FALSE;
+    return false;
 }
 
 vk::DebugUtilsMessengerCreateInfoEXT Backend::make_debug_messenger_create_info(){
@@ -271,6 +283,8 @@ void Backend::init_logical_device(){
     this->instance.device = this->instance.gpu.createDevice(create_info);
     this->instance.graphics = {this->graphics_queue_id, this->instance.device.getQueue(this->graphics_queue_id, 0)}; // We only have 1 graphics queue
     this->instance.present = {this->graphics_queue_id, this->instance.device.getQueue(this->presentation_queue_id, 0)}; // We only have 1 graphics queue
+
+    print("vulkan: Initialized device with {} extension(s) and {} validation layer(s)\n", create_info.enabledExtensionCount, create_info.enabledLayerCount);
 }
 
 std::vector<const char*> Backend::get_extensions(){

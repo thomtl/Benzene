@@ -35,7 +35,7 @@ namespace benzene::vulkan {
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
-    constexpr size_t max_frames_in_flight = 15;
+    constexpr size_t max_frames_in_flight = 16;
 
     
 
@@ -90,8 +90,7 @@ namespace benzene::vulkan {
 
         SwapChain swapchain;
         RenderPipeline pipeline;
-
-
+        
         uint32_t graphics_queue_id, presentation_queue_id;
     };
 } // namespace benzene::vulkan
