@@ -328,17 +328,17 @@ namespace benzene::vulkan
 
             ImGui::SetNextWindowSize(ImVec2{200, 200}, ImGuiCond_FirstUseEver);
             ImGui::Begin("Benzene");
-            auto name = format_to_str("Device: {}", instance->gpu.getProperties().deviceName);
+            auto name = format_to_str("Device: {:s} ({:s}) [{:#x}:{:#x}]", instance->gpu.getProperties().deviceName, vk::to_string(instance->gpu.getProperties().deviceType), instance->gpu.getProperties().vendorID, instance->gpu.getProperties().deviceID);
             ImGui::TextUnformatted(name.c_str());
 
-            auto chain = instance->gpu.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceVulkan12Properties>();
+            auto chain = instance->gpu.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceDriverProperties>();
             [[maybe_unused]] auto& prop2 = chain.get<vk::PhysicalDeviceProperties2>();
-            auto& vk12 = chain.get<vk::PhysicalDeviceVulkan12Properties>();
+            auto& driver = chain.get<vk::PhysicalDeviceDriverProperties>();
 
-            name = format_to_str("Driver name: {}", strlen(vk12.driverName) != 0 ? vk12.driverName : "Unknown");
+            name = format_to_str("Driver name: {:s}", strlen(driver.driverName) != 0 ? driver.driverName : "Unknown");
             ImGui::TextUnformatted(name.c_str());
 
-            name = format_to_str("Driver info: {}", strlen(vk12.driverInfo) != 0 ? vk12.driverInfo : "Unknown");
+            name = format_to_str("Driver info: {:s}", strlen(driver.driverInfo) != 0 ? driver.driverInfo : "Unknown");
             ImGui::TextUnformatted(name.c_str());
 
             ImGui::End();
