@@ -16,6 +16,18 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
         auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
         backend.framebuffer_resize_callback(width, height);
     });
+    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods){
+        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
+        backend.mouse_button_callback(button, action);
+    });
+    glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
+        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
+        backend.mouse_pos_callback(x, y);
+    });
+    glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
+        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
+        backend.mouse_scroll_callback(xoffset, yoffset);
+    });
     
     this->backend = std::make_unique<vulkan::Backend>(name, this->window);
     glfwSetWindowUserPointer(window, (void*)&(*this->backend));

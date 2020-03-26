@@ -41,7 +41,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     info.setApplicationVersion(VK_MAKE_VERSION(1, 0, 0));
     info.pEngineName = "Benzene";
     info.setEngineVersion(VK_MAKE_VERSION(1, 0, 0));
-    info.apiVersion = VK_API_VERSION_1_0;
+    info.apiVersion = VK_API_VERSION_1_2;
 
     vk::InstanceCreateInfo create_info{};
     create_info.pApplicationInfo = &info;
@@ -92,13 +92,17 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
 
     vk::CommandPoolCreateInfo pool_info{};
     pool_info.queueFamilyIndex = graphics_queue_id;
+    pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     this->instance.command_pool = this->instance.device.createCommandPool(pool_info);
 
-    this->vertices = VertexBuffer{&this->instance, {raw_vertices}};
-    this->indices = IndexBuffer{&this->instance, {raw_indices}};
+    this->vertices = VertexBuffer{&this->instance, {raw_vertices}, vk::BufferUsageFlagBits::eVertexBuffer};
+    this->indices = IndexBuffer{&this->instance, {raw_indices}, vk::BufferUsageFlagBits::eIndexBuffer};
 
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain};
+
+    this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass()};
+
     this->create_renderer();
 
     this->image_available.resize(max_frames_in_flight);
@@ -119,6 +123,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
 }
 
 Backend::~Backend(){
+    this->imgui_renderer.clean();
     this->cleanup_renderer();
 
     this->vertices.clean();
@@ -154,6 +159,10 @@ void Backend::frame_update(){
     }
     if(image_index.result != vk::Result::eSuccess && image_index.result != vk::Result::eSuboptimalKHR)
         throw std::runtime_error("Failed to acquire swapchain image");
+
+    ImGui::GetIO().MouseDown[0] = glfwGetMouseButton(this->instance.window, 0);
+    ImGui::GetIO().MouseDown[1] = glfwGetMouseButton(this->instance.window, 1);
+    this->build_command_buffers();
     
     if(images_in_flight[image_index.value] != vk::Fence{nullptr})
         this->instance.device.waitForFences({this->images_in_flight[image_index.value]}, true, UINT64_MAX);
@@ -412,6 +421,7 @@ void Backend::recreate_renderer(){
     this->cleanup_renderer();
 
     this->swapchain = SwapChain{&this->instance, this->graphics_queue_id, this->presentation_queue_id};
+    ImGui::GetIO().DisplaySize = ImVec2{(float)swapchain.get_extent().width, (float)swapchain.get_extent().height};
     // Pipeline does not have to be recreated since its modified state(Viewport / Scissor) is dynamic
     this->create_renderer();
 }
@@ -440,6 +450,11 @@ void Backend::create_renderer(){
     allocate_info.commandBufferCount = this->framebuffers.size();
 
     this->command_buffers = this->instance.device.allocateCommandBuffers(allocate_info);
+}
+
+void Backend::build_command_buffers(){
+    imgui_renderer.new_frame();
+    imgui_renderer.update_buffers();
 
     for(size_t i = 0; i < this->command_buffers.size(); i++){
         vk::CommandBufferBeginInfo begin_info{};
@@ -473,12 +488,15 @@ void Backend::create_renderer(){
         scissor.offset = vk::Offset2D{0, 0};
         scissor.extent = this->swapchain.get_extent();
 
-        this->command_buffers[i].bindVertexBuffers(0, {vertices.vertex_buffer_handle()}, {0});
-        this->command_buffers[i].bindIndexBuffer(indices.index_buffer_handle(), 0, vk::IndexType::eUint16);
+        this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
+        this->command_buffers[i].bindIndexBuffer(indices.handle(), 0, vk::IndexType::eUint16);
         this->command_buffers[i].setViewport(0, {viewport});
         this->command_buffers[i].setScissor(0, {scissor});
 
         this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
+
+        imgui_renderer.draw_frame(this->command_buffers[i]);
+
         this->command_buffers[i].endRenderPass();
         this->command_buffers[i].end();
     }

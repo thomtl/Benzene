@@ -2,66 +2,6 @@
 
 using namespace benzene::vulkan;
 
-static void copy_buffer(Instance* instance, Buffer& src, Buffer& dst, size_t size){
-    CommandBuffer cmd{instance, &instance->graphics};
-
-    {
-        std::lock_guard guard{cmd};
-        vk::BufferCopy copy_region{};
-        copy_region.srcOffset = 0;
-        copy_region.dstOffset = 0;
-        copy_region.size = size;
-
-        cmd.handle().copyBuffer(src.handle(), dst.handle(), {copy_region});
-    }
-}
-
-#pragma region vertex_buffer
-
-VertexBuffer::VertexBuffer(Instance* instance, std::vector<Vertex> vertices): instance{instance} {
-    size_t size = sizeof(Vertex) * vertices.size();
-    auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
-
-    void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
-    memcpy(data, vertices.data(), size);
-    instance->allocator.unmapMemory(staging_buf.allocation_handle());
-
-    this->vertex_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eVertexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
-
-    copy_buffer(instance, staging_buf, vertex_buf, size);
-
-    staging_buf.clean();
-}
-
-void VertexBuffer::clean(){
-    this->vertex_buf.clean();
-}
-
-#pragma endregion
-
-#pragma region index_buffer
-
-IndexBuffer::IndexBuffer(Instance* instance, std::vector<uint16_t> vertices): instance{instance} {
-    size_t size = sizeof(uint16_t) * vertices.size();
-    auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
-
-    void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
-    memcpy(data, vertices.data(), size);
-    instance->allocator.unmapMemory(staging_buf.allocation_handle());
-
-    this->index_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eIndexBuffer | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
-
-    copy_buffer(instance, staging_buf, index_buf, size);
-
-    staging_buf.clean();
-}
-
-void IndexBuffer::clean(){
-    this->index_buf.clean();
-}
-
-#pragma endregion
-
 #pragma region render_pass
 
 RenderPass::RenderPass(): instance{nullptr},renderpass{nullptr}, swapchain{nullptr} {}

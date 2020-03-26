@@ -5,7 +5,10 @@
 #include "shader.hpp"
 #include "swap_chain.hpp"
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
 
 namespace benzene::vulkan
 {
@@ -37,37 +40,54 @@ namespace benzene::vulkan
         }
     };
 
-    class VertexBuffer {
+    template<typename T>
+    class BouncedBuffer {
         public:
-        VertexBuffer(): instance{nullptr}, vertex_buf{} {}
-        VertexBuffer(Instance* instance, std::vector<Vertex> vertices);
+        BouncedBuffer(): instance{nullptr}, buf{} {}
+        BouncedBuffer(Instance* instance, std::vector<T> items, vk::BufferUsageFlags usage): instance{instance} {
+            size_t size = sizeof(T) * items.size();
+            auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
-        void clean();
+            void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
+            memcpy(data, items.data(), size);
+            instance->allocator.unmapMemory(staging_buf.allocation_handle());
 
-        vk::Buffer& vertex_buffer_handle(){
-            return vertex_buf.handle();
+            this->buf = Buffer{instance, size, usage | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    
+
+            auto copy_buffer = [](Instance* instance, Buffer& src, Buffer& dst, size_t size){
+                CommandBuffer cmd{instance, &instance->graphics};
+
+                {
+                    std::lock_guard guard{cmd};
+                    vk::BufferCopy copy_region{};
+                    copy_region.srcOffset = 0;
+                    copy_region.dstOffset = 0;
+                    copy_region.size = size;
+
+                    cmd.handle().copyBuffer(src.handle(), dst.handle(), {copy_region});
+                }
+            };
+
+            copy_buffer(instance, staging_buf, buf, size);
+
+            staging_buf.clean();
+        }
+
+        void clean(){
+            this->buf.clean();
+        }
+
+        vk::Buffer& handle(){
+            return buf.handle();
         }
 
         private:
         Instance* instance;
-        Buffer vertex_buf;
+        Buffer buf;
     };
 
-    class IndexBuffer {
-        public:
-        IndexBuffer(): instance{nullptr}, index_buf{} {}
-        IndexBuffer(Instance* instance, std::vector<uint16_t> vertices);
-
-        void clean();
-
-        vk::Buffer& index_buffer_handle(){
-            return index_buf.handle();
-        }
-
-        private:
-        Instance* instance;
-        Buffer index_buf;
-    };
+    using VertexBuffer = BouncedBuffer<Vertex>;
+    using IndexBuffer = BouncedBuffer<uint16_t>;
 
     class RenderPass {
         public:

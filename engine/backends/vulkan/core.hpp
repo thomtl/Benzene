@@ -4,6 +4,7 @@
 #include "extra_api.hpp"
 #include "swap_chain.hpp"
 #include "renderer.hpp"
+#include "imgui.hpp"
 
 namespace benzene::vulkan
 {
@@ -35,7 +36,7 @@ namespace benzene::vulkan {
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
-    constexpr size_t max_frames_in_flight = 16;
+    constexpr size_t max_frames_in_flight = 1;
 
     
 
@@ -62,6 +63,19 @@ namespace benzene::vulkan {
             this->framebuffer_resized = true;
         }
 
+        void mouse_button_callback(int button, bool state){
+            ImGui::GetIO().MouseDown[button] = state;
+        }
+
+        void mouse_pos_callback(double x, double y){
+            ImGui::GetIO().MousePos = ImVec2{(float)x, (float)y};
+        }
+
+        void mouse_scroll_callback(double xoffset, double yoffset){
+            ImGui::GetIO().MouseWheelH += (float)xoffset;
+            ImGui::GetIO().MouseWheel += (float)yoffset;
+        }
+
         template<typename F>
         std::optional<uint32_t> get_queue_index(vk::PhysicalDevice dev, F functor){
             auto queue_families = dev.getQueueFamilyProperties();
@@ -76,8 +90,9 @@ namespace benzene::vulkan {
         void create_renderer();
         void recreate_renderer();
 
-        Instance instance; 
+        void build_command_buffers();
 
+        Instance instance; 
         bool framebuffer_resized;
         size_t current_frame;
         VertexBuffer vertices;
@@ -87,6 +102,7 @@ namespace benzene::vulkan {
         std::vector<vk::CommandBuffer> command_buffers;
         std::vector<vk::Framebuffer> framebuffers;
         vk::DebugUtilsMessengerEXT debug_messenger;
+        Imgui imgui_renderer;
 
         SwapChain swapchain;
         RenderPipeline pipeline;

@@ -14,6 +14,9 @@ namespace benzene
         public:
         virtual ~IBackend() {}
         virtual void framebuffer_resize_callback(int width, int height) = 0;
+        virtual void mouse_button_callback(int button, bool state) = 0;
+        virtual void mouse_pos_callback(double x, double y) = 0;
+        virtual void mouse_scroll_callback(double xoffset, double yoffset) = 0;
         virtual void frame_update() = 0;
         virtual void end_run() = 0;
     };

@@ -9,7 +9,7 @@ namespace format
 {
 	template<typename OutputIt>
 	struct format_output_it {
-		format_output_it(OutputIt it): it{it} {}
+		format_output_it(OutputIt& it): it{it} {}
 
 		void write(const char* str){
 			while(*str)
@@ -306,4 +306,18 @@ void print(const char* fmt, Args&&... args){
     } it;
 
     format::format_to(it, fmt, std::forward<Args>(args)...);
+}
+
+template<typename... Args>
+std::string format_to_str(const char* fmt, Args&&... args){
+    struct {
+        void putc(const char c){
+			//::putchar(c);
+			str.push_back(c);
+        }
+		std::string str{};
+    } it{};
+
+    format::format_to(it, fmt, std::forward<Args>(args)...);
+	return it.str;
 }

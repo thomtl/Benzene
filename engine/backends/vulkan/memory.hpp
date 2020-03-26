@@ -8,6 +8,8 @@ namespace benzene::vulkan
         public:
         Buffer(): instance{nullptr}, buf{nullptr}, allocation{nullptr} {}
         Buffer(Instance* instance, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): instance{instance} {
+            if(size == 0)
+                size = 1;
             vk::BufferCreateInfo buffer_info{};
             buffer_info.size = size;
             buffer_info.usage = usage;
@@ -21,7 +23,30 @@ namespace benzene::vulkan
         }
 
         void clean(){
+            if(!instance)
+                return;
+            if(buf == vk::Buffer{nullptr} || allocation == vma::Allocation{nullptr})
+                return;
             instance->allocator.destroyBuffer(buf, allocation);
+        }
+
+        void map(){
+            if(internal_data)
+                this->unmap();
+            
+            this->internal_data = instance->allocator.mapMemory(allocation);
+        }
+
+        void unmap(){
+            if(!internal_data)
+                return;
+            
+            instance->allocator.unmapMemory(allocation);
+            this->internal_data = nullptr;
+        }
+
+        void* data(){
+            return this->internal_data;
         }
 
         vk::Buffer& handle(){
@@ -33,6 +58,7 @@ namespace benzene::vulkan
         }
 
         private:
+        void* internal_data;
         Instance* instance;
         vk::Buffer buf;
         vma::Allocation allocation;
