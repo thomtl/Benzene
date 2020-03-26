@@ -322,30 +322,7 @@ namespace benzene::vulkan
             instance->device.destroyDescriptorPool(descriptor_pool);
             instance->device.destroyDescriptorSetLayout(descriptor_set_layout);
         }
-
-        void new_frame(){
-            ImGui::NewFrame();
-
-            ImGui::SetNextWindowSize(ImVec2{200, 200}, ImGuiCond_FirstUseEver);
-            ImGui::Begin("Benzene");
-            auto name = format_to_str("Device: {:s} ({:s}) [{:#x}:{:#x}]", instance->gpu.getProperties().deviceName, vk::to_string(instance->gpu.getProperties().deviceType), instance->gpu.getProperties().vendorID, instance->gpu.getProperties().deviceID);
-            ImGui::TextUnformatted(name.c_str());
-
-            auto chain = instance->gpu.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceDriverProperties>();
-            [[maybe_unused]] auto& prop2 = chain.get<vk::PhysicalDeviceProperties2>();
-            auto& driver = chain.get<vk::PhysicalDeviceDriverProperties>();
-
-            name = format_to_str("Driver name: {:s}", strlen(driver.driverName) != 0 ? driver.driverName : "Unknown");
-            ImGui::TextUnformatted(name.c_str());
-
-            name = format_to_str("Driver info: {:s}", strlen(driver.driverInfo) != 0 ? driver.driverInfo : "Unknown");
-            ImGui::TextUnformatted(name.c_str());
-
-            ImGui::End();
-
-            ImGui::Render();
-        }
-
+        
         void update_buffers(){
             auto* draw_data = ImGui::GetDrawData();
 

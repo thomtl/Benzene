@@ -18,6 +18,10 @@ const std::vector<uint16_t> raw_indices = {
 #pragma region backend
 
 Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
+    frame_time = 0.0f;
+    max_frame_time = 0.1f;
+    min_frame_time = 9999.0f;
+    last_frame_times = {};
     this->instance.window = window;
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layers but they are unsupported");
@@ -149,6 +153,7 @@ Backend::~Backend(){
 }
 
 void Backend::frame_update(){
+    auto time_begin = std::chrono::high_resolution_clock::now();
     this->instance.device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
     vk::ResultValue<uint32_t> image_index{vk::Result::eSuccess, 0};
     try {
@@ -160,8 +165,6 @@ void Backend::frame_update(){
     if(image_index.result != vk::Result::eSuccess && image_index.result != vk::Result::eSuboptimalKHR)
         throw std::runtime_error("Failed to acquire swapchain image");
 
-    ImGui::GetIO().MouseDown[0] = glfwGetMouseButton(this->instance.window, 0);
-    ImGui::GetIO().MouseDown[1] = glfwGetMouseButton(this->instance.window, 1);
     this->build_command_buffers();
     
     if(images_in_flight[image_index.value] != vk::Fence{nullptr})
@@ -212,6 +215,18 @@ void Backend::frame_update(){
         throw std::runtime_error("Failed to acquire swapchain image");
 
     this->current_frame = (this->current_frame + 1) % max_frames_in_flight;
+    this->frame_counter++;
+
+    auto time_end = std::chrono::high_resolution_clock::now();
+    frame_time = (float)(std::chrono::duration<double, std::milli>(time_end - time_begin).count()) / 1000.0f;
+
+    auto fps_timer = (float)std::chrono::duration<double, std::milli>(time_end - last_frame_timestamp).count();
+    if(fps_timer > 1000.0f){
+        fps = (uint32_t)((float)frame_counter * (1000.0f / fps_timer));
+        frame_counter = 0;
+        last_frame_timestamp = time_end;
+
+    }
 }
 
 void Backend::end_run(){
@@ -453,7 +468,45 @@ void Backend::create_renderer(){
 }
 
 void Backend::build_command_buffers(){
-    imgui_renderer.new_frame();
+    ImGui::NewFrame();
+    ImGui::SetNextWindowSize(ImVec2{200, 200}, ImGuiCond_FirstUseEver);
+    ImGui::Begin("Benzene");
+    auto name = format_to_str("Device: {:s} ({:s}) [{:#x}:{:#x}]", instance.gpu.getProperties().deviceName, vk::to_string(instance.gpu.getProperties().deviceType), instance.gpu.getProperties().vendorID, instance.gpu.getProperties().deviceID);
+    ImGui::TextUnformatted(name.c_str());
+
+    auto chain = instance.gpu.getProperties2<vk::PhysicalDeviceProperties2, vk::PhysicalDeviceDriverProperties>();
+    [[maybe_unused]] auto& prop2 = chain.get<vk::PhysicalDeviceProperties2>();
+    auto& driver = chain.get<vk::PhysicalDeviceDriverProperties>();
+
+    name = format_to_str("Driver name: {:s}", strlen(driver.driverName) != 0 ? driver.driverName : "Unknown");
+    ImGui::TextUnformatted(name.c_str());
+
+    name = format_to_str("Driver info: {:s}", strlen(driver.driverInfo) != 0 ? driver.driverInfo : "Unknown");
+    ImGui::TextUnformatted(name.c_str());
+
+    std::rotate(last_frame_times.begin(), last_frame_times.begin() + 1, last_frame_times.end());
+    float curr_time;
+    if(this->frame_time != 0)
+        curr_time = 1000.0f / (this->frame_time * 1000.0f);
+    else
+        curr_time = 100.0f; // Normalish frame time to stop 0 divide
+        
+    last_frame_times.back() = curr_time;
+
+    if(curr_time < min_frame_time)
+        min_frame_time = curr_time;
+
+    if(curr_time > max_frame_time)
+        max_frame_time = curr_time;
+
+    ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
+
+    auto fps_str = format_to_str("FPS: {:d}", fps);
+    ImGui::TextUnformatted(fps_str.c_str());
+
+    ImGui::End();
+
+    ImGui::Render();
     imgui_renderer.update_buffers();
 
     for(size_t i = 0; i < this->command_buffers.size(); i++){

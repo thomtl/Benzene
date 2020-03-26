@@ -11,6 +11,7 @@
 #include <array>
 #include <algorithm>
 #include <mutex>
+#include <chrono>
 
 #include <benzene/benzene.hpp>
 

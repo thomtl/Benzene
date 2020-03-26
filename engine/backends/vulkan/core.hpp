@@ -108,5 +108,10 @@ namespace benzene::vulkan {
         RenderPipeline pipeline;
         
         uint32_t graphics_queue_id, presentation_queue_id;
+
+        float frame_time, min_frame_time, max_frame_time;
+        std::array<float, 100> last_frame_times;
+        std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
+        uint64_t frame_counter, fps;
     };
 } // namespace benzene::vulkan
