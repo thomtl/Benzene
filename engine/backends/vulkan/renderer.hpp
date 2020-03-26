@@ -49,7 +49,8 @@ namespace benzene::vulkan
             auto staging_buf = Buffer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};    
 
             void* data = instance->allocator.mapMemory(staging_buf.allocation_handle());
-            memcpy(data, items.data(), size);
+            if(items.data()) // might be null when passed 0 size vector
+                memcpy(data, items.data(), size);
             instance->allocator.unmapMemory(staging_buf.allocation_handle());
 
             this->buf = Buffer{instance, size, usage | vk::BufferUsageFlagBits::eTransferDst, vk::MemoryPropertyFlagBits::eDeviceLocal};    

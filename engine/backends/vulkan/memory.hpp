@@ -6,8 +6,8 @@ namespace benzene::vulkan
 {
     class Buffer {
         public:
-        Buffer(): instance{nullptr}, buf{nullptr}, allocation{nullptr} {}
-        Buffer(Instance* instance, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): instance{instance} {
+        Buffer(): internal_data{nullptr}, instance{nullptr}, buf{nullptr}, allocation{nullptr} {}
+        Buffer(Instance* instance, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): internal_data{nullptr}, instance{instance} {
             if(size == 0)
                 size = 1;
             vk::BufferCreateInfo buffer_info{};

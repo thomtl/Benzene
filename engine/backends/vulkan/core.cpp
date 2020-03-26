@@ -22,6 +22,9 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     max_frame_time = 0.1f;
     min_frame_time = 9999.0f;
     last_frame_times = {};
+    frame_counter = 0;
+    fps = 0;
+    framebuffer_resized = false;
     this->instance.window = window;
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layers but they are unsupported");
@@ -201,7 +204,7 @@ void Backend::frame_update(){
     present_info.pImageIndices = &image_index.value;
     present_info.pResults = nullptr;
 
-    vk::Result result;
+    vk::Result result = vk::Result::eSuccess;
     try {
         result = this->instance.present().presentKHR(present_info);
     } catch(vk::OutOfDateKHRError& error){

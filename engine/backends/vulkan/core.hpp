@@ -36,7 +36,7 @@ namespace benzene::vulkan {
     };
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
-    constexpr size_t max_frames_in_flight = 1;
+    constexpr size_t max_frames_in_flight = 16;
 
     
 
