@@ -108,7 +108,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain};
 
-    this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass()};
+    this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass(), this->swapchain.get_images().size()};
 
     this->create_renderer();
 
@@ -168,12 +168,18 @@ void Backend::frame_update(){
     if(image_index.result != vk::Result::eSuccess && image_index.result != vk::Result::eSuboptimalKHR)
         throw std::runtime_error("Failed to acquire swapchain image");
 
-    this->build_command_buffers();
+    
     
     if(images_in_flight[image_index.value] != vk::Fence{nullptr})
         this->instance.device.waitForFences({this->images_in_flight[image_index.value]}, true, UINT64_MAX);
 
     images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
+
+    ImGui::NewFrame();
+    this->draw_internal_debug_window();
+    ImGui::Render();
+    imgui_renderer.update_buffers(image_index.value);
+    this->build_command_buffer(image_index.value);
 
     vk::SubmitInfo submit_info{};
 
@@ -470,8 +476,52 @@ void Backend::create_renderer(){
     this->command_buffers = this->instance.device.allocateCommandBuffers(allocate_info);
 }
 
-void Backend::build_command_buffers(){
-    ImGui::NewFrame();
+void Backend::build_command_buffer(size_t i){
+    vk::CommandBufferBeginInfo begin_info{};
+        
+    this->command_buffers[i].begin(begin_info);
+
+    vk::RenderPassBeginInfo render_info{};
+    render_info.renderPass = this->pipeline.get_render_pass().handle();
+    render_info.framebuffer = this->framebuffers[i];
+    render_info.renderArea.offset = vk::Offset2D{0, 0};
+    render_info.renderArea.extent = this->swapchain.get_extent();
+        
+    vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
+    vk::ClearValue clear_value{};
+    clear_value.setColor(clear_colour);
+    render_info.clearValueCount = 1;
+    render_info.pClearValues = &clear_value;
+
+    this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
+    this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+
+    vk::Viewport viewport{};
+    viewport.x = 0;
+    viewport.y = 0;
+    viewport.width = (float)swapchain.get_extent().width;
+    viewport.height = (float)swapchain.get_extent().height;
+    viewport.minDepth = 0.0f;
+    viewport.maxDepth = 1.0f;
+
+    vk::Rect2D scissor{};
+    scissor.offset = vk::Offset2D{0, 0};
+    scissor.extent = this->swapchain.get_extent();
+
+    this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
+    this->command_buffers[i].bindIndexBuffer(indices.handle(), 0, vk::IndexType::eUint16);
+    this->command_buffers[i].setViewport(0, {viewport});
+    this->command_buffers[i].setScissor(0, {scissor});
+
+    this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
+
+    imgui_renderer.draw_frame(i, this->command_buffers[i]);
+
+    this->command_buffers[i].endRenderPass();
+    this->command_buffers[i].end();
+}
+
+void Backend::draw_internal_debug_window(){
     ImGui::SetNextWindowSize(ImVec2{200, 200}, ImGuiCond_FirstUseEver);
     ImGui::Begin("Benzene");
     auto name = format_to_str("Device: {:s} ({:s}) [{:#x}:{:#x}]", instance.gpu.getProperties().deviceName, vk::to_string(instance.gpu.getProperties().deviceType), instance.gpu.getProperties().vendorID, instance.gpu.getProperties().deviceID);
@@ -508,54 +558,6 @@ void Backend::build_command_buffers(){
     ImGui::TextUnformatted(fps_str.c_str());
 
     ImGui::End();
-
-    ImGui::Render();
-    imgui_renderer.update_buffers();
-
-    for(size_t i = 0; i < this->command_buffers.size(); i++){
-        vk::CommandBufferBeginInfo begin_info{};
-        
-        this->command_buffers[i].begin(begin_info);
-
-        vk::RenderPassBeginInfo render_info{};
-        render_info.renderPass = this->pipeline.get_render_pass().handle();
-        render_info.framebuffer = this->framebuffers[i];
-        render_info.renderArea.offset = vk::Offset2D{0, 0};
-        render_info.renderArea.extent = this->swapchain.get_extent();
-        
-        vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
-        vk::ClearValue clear_value{};
-        clear_value.setColor(clear_colour);
-        render_info.clearValueCount = 1;
-        render_info.pClearValues = &clear_value;
-
-        this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
-        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
-
-        vk::Viewport viewport{};
-        viewport.x = 0;
-        viewport.y = 0;
-        viewport.width = (float)swapchain.get_extent().width;
-        viewport.height = (float)swapchain.get_extent().height;
-        viewport.minDepth = 0.0f;
-        viewport.maxDepth = 1.0f;
-
-        vk::Rect2D scissor{};
-        scissor.offset = vk::Offset2D{0, 0};
-        scissor.extent = this->swapchain.get_extent();
-
-        this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
-        this->command_buffers[i].bindIndexBuffer(indices.handle(), 0, vk::IndexType::eUint16);
-        this->command_buffers[i].setViewport(0, {viewport});
-        this->command_buffers[i].setScissor(0, {scissor});
-
-        this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
-
-        imgui_renderer.draw_frame(this->command_buffers[i]);
-
-        this->command_buffers[i].endRenderPass();
-        this->command_buffers[i].end();
-    }
 }
 
 #pragma endregion

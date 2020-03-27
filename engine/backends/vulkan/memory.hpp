@@ -25,8 +25,11 @@ namespace benzene::vulkan
         void clean(){
             if(!instance)
                 return;
-            if(buf == vk::Buffer{nullptr} || allocation == vma::Allocation{nullptr})
+            if(!instance->allocator)
                 return;
+            if(!buf || !allocation)
+                return;
+            
             instance->allocator.destroyBuffer(buf, allocation);
         }
 

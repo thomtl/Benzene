@@ -15,7 +15,9 @@ namespace benzene::vulkan
         } push_const_block;
         
 
-        Imgui(Instance* instance, SwapChain* swapchain, RenderPass* renderpass): instance{instance}, swapchain{swapchain}, renderpass{renderpass} {
+        Imgui(Instance* instance, SwapChain* swapchain, RenderPass* renderpass, size_t n_buffers): instance{instance}, swapchain{swapchain}, renderpass{renderpass} {
+            vertices.resize(n_buffers);
+            indices.resize(n_buffers);
             ImGui::CreateContext();
             ImGui::StyleColorsDark();
 
@@ -307,8 +309,11 @@ namespace benzene::vulkan
         void clean(){
             ImGui::DestroyContext();
 
-            vertices.clean();
-            indices.clean();
+            for(auto& vertex : vertices)
+                vertex.clean();
+            
+            for(auto& index : indices)
+                index.clean();
 
             instance->device.destroyImageView(font_view);
             instance->allocator.destroyImage(font_image, font_memory);
@@ -323,12 +328,11 @@ namespace benzene::vulkan
             instance->device.destroyDescriptorSetLayout(descriptor_set_layout);
         }
         
-        void update_buffers(){
+        void update_buffers(size_t i){
             auto* draw_data = ImGui::GetDrawData();
 
             size_t vertex_size = draw_data->TotalVtxCount * sizeof(ImDrawVert);
             size_t index_size = draw_data->TotalIdxCount * sizeof(ImDrawIdx);
-
 
             std::vector<std::byte> vertex_data{};
             vertex_data.resize(vertex_size);
@@ -347,14 +351,14 @@ namespace benzene::vulkan
                 index_dst += cmd_list.IdxBuffer.Size;
             }
 
-            this->vertices.clean();
-            this->vertices = BouncedBuffer<std::byte>{instance, vertex_data, vk::BufferUsageFlagBits::eVertexBuffer};
+            this->vertices[i].clean();
+            this->vertices[i] = BouncedBuffer<std::byte>{instance, vertex_data, vk::BufferUsageFlagBits::eVertexBuffer};
             
-            this->indices.clean();
-            this->indices = BouncedBuffer<std::byte>{instance, index_data, vk::BufferUsageFlagBits::eIndexBuffer};
+            this->indices[i].clean();
+            this->indices[i] = BouncedBuffer<std::byte>{instance, index_data, vk::BufferUsageFlagBits::eIndexBuffer};
         }
 
-        void draw_frame(vk::CommandBuffer buf){
+        void draw_frame(size_t i, vk::CommandBuffer buf){
             auto& io = ImGui::GetIO();
 
             buf.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline_layout, 0, {descriptor_set}, {});
@@ -380,8 +384,8 @@ namespace benzene::vulkan
             if(draw_data.CmdListsCount == 0)
                 return;
 
-            buf.bindVertexBuffers(0, {vertices.handle()}, {0});
-            buf.bindIndexBuffer(indices.handle(), 0, (sizeof(ImDrawIdx) == 2) ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
+            buf.bindVertexBuffers(0, {vertices[i].handle()}, {0});
+            buf.bindIndexBuffer(indices[i].handle(), 0, (sizeof(ImDrawIdx) == 2) ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
 
             for(int i = 0; i < draw_data.CmdListsCount; i++){
                 const ImDrawList& list = *draw_data.CmdLists[i];
@@ -408,8 +412,8 @@ namespace benzene::vulkan
         SwapChain* swapchain;
         RenderPass* renderpass;
         vk::Sampler sampler;
-        BouncedBuffer<std::byte> vertices;
-        BouncedBuffer<std::byte> indices;
+        std::vector<BouncedBuffer<std::byte>> vertices;
+        std::vector<BouncedBuffer<std::byte>> indices;
 
         vma::Allocation font_memory;
         vk::Image font_image;

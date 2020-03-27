@@ -83,4 +83,8 @@ namespace benzene::vulkan
         Instance::Queue* submit_queue;
         vk::CommandBuffer cmd;
     };
+
+    constexpr bool enable_validation = true;
+    constexpr bool debug = true;
+    constexpr size_t max_frames_in_flight = 16;
 } // namespace benzene::vulkan

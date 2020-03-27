@@ -34,11 +34,6 @@ namespace benzene::vulkan {
     constexpr std::array<const char*, 1> validation_layers = {
         "VK_LAYER_KHRONOS_validation"
     };
-    constexpr bool enable_validation = true;
-    constexpr bool debug = true;
-    constexpr size_t max_frames_in_flight = 16;
-
-    
 
     class Backend : public IBackend {
         public:
@@ -90,7 +85,8 @@ namespace benzene::vulkan {
         void create_renderer();
         void recreate_renderer();
 
-        void build_command_buffers();
+        void build_command_buffer(size_t i);
+        void draw_internal_debug_window();
 
         Instance instance; 
         bool framebuffer_resized;
