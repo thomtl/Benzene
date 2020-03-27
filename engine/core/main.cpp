@@ -39,8 +39,11 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
     while(!glfwWindowShouldClose(window) && !frame_data.should_exit){
         glfwPollEvents();
         ImGui::NewFrame();
-        this->backend->draw_debug_window();
         functor(frame_data);
+
+        if(frame_data.display_debug_window)
+            this->backend->draw_debug_window();
+
         ImGui::Render();
         this->backend->frame_update();
     }

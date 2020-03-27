@@ -25,7 +25,7 @@ namespace benzene
     };
 
     struct FrameData {
-        bool should_exit;
+        bool should_exit, display_debug_window;
         IBackend* backend;
     };
 

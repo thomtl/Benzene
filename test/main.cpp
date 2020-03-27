@@ -14,6 +14,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
         if(ImGui::BeginMainMenuBar()){
             if(ImGui::BeginMenu("File")){
+                ImGui::Checkbox("Debug", &data.display_debug_window);
                 if(ImGui::MenuItem("Exit"))
                     data.should_exit = true;
                 ImGui::EndMenu();
