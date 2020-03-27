@@ -19,7 +19,7 @@ const std::vector<uint16_t> raw_indices = {
 
 Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
     frame_time = 0.0f;
-    max_frame_time = 0.1f;
+    max_frame_time = 0.0f;
     min_frame_time = 9999.0f;
     last_frame_times = {};
     frame_counter = 0;
@@ -224,7 +224,7 @@ void Backend::frame_update(){
     this->frame_counter++;
 
     auto time_end = std::chrono::high_resolution_clock::now();
-    frame_time = (float)(std::chrono::duration<double, std::milli>(time_end - time_begin).count()) / 1000.0f;
+    frame_time = (float)(std::chrono::duration<double, std::milli>(time_end - time_begin).count());
 
     auto fps_timer = (float)std::chrono::duration<double, std::milli>(time_end - last_frame_timestamp).count();
     if(fps_timer > 1000.0f){
@@ -535,22 +535,15 @@ void Backend::draw_debug_window(){
     ImGui::TextUnformatted(name.c_str());
 
     std::rotate(last_frame_times.begin(), last_frame_times.begin() + 1, last_frame_times.end());
-    float curr_time;
-    if(this->frame_time != 0)
-        curr_time = 1000.0f / (this->frame_time * 1000.0f);
-    else
-        curr_time = 100.0f; // Normalish frame time to stop 0 divide
-        
-    last_frame_times.back() = curr_time;
+    last_frame_times.back() = this->frame_time;
 
-    if(curr_time < min_frame_time)
-        min_frame_time = curr_time;
+    if(frame_time < min_frame_time)
+        min_frame_time = frame_time;
 
-    if(curr_time > max_frame_time)
-        max_frame_time = curr_time;
+    if(frame_time > max_frame_time)
+        max_frame_time = frame_time;
 
     ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
-
     auto fps_str = format_to_str("FPS: {:d}", fps);
     ImGui::TextUnformatted(fps_str.c_str());
 
