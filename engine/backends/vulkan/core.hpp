@@ -86,7 +86,7 @@ namespace benzene::vulkan {
         void recreate_renderer();
 
         void build_command_buffer(size_t i);
-        void draw_internal_debug_window();
+        void draw_debug_window();
 
         Instance instance; 
         bool framebuffer_resized;

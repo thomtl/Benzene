@@ -175,9 +175,6 @@ void Backend::frame_update(){
 
     images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
 
-    ImGui::NewFrame();
-    this->draw_internal_debug_window();
-    ImGui::Render();
     imgui_renderer.update_buffers(image_index.value);
     this->build_command_buffer(image_index.value);
 
@@ -521,7 +518,7 @@ void Backend::build_command_buffer(size_t i){
     this->command_buffers[i].end();
 }
 
-void Backend::draw_internal_debug_window(){
+void Backend::draw_debug_window(){
     ImGui::SetNextWindowSize(ImVec2{200, 200}, ImGuiCond_FirstUseEver);
     ImGui::Begin("Benzene");
     auto name = format_to_str("Device: {:s} ({:s}) [{:#x}:{:#x}]", instance.gpu.getProperties().deviceName, vk::to_string(instance.gpu.getProperties().deviceType), instance.gpu.getProperties().vendorID, instance.gpu.getProperties().deviceID);

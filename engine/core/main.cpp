@@ -33,10 +33,15 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
     glfwSetWindowUserPointer(window, (void*)&(*this->backend));
 }
 
-void benzene::Instance::run(std::function<void(void)> functor){
-    while(!glfwWindowShouldClose(window)){
+void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
+    FrameData frame_data{};
+    frame_data.backend = this->backend.get();
+    while(!glfwWindowShouldClose(window) && !frame_data.should_exit){
         glfwPollEvents();
-        functor();
+        ImGui::NewFrame();
+        this->backend->draw_debug_window();
+        functor(frame_data);
+        ImGui::Render();
         this->backend->frame_update();
     }
     this->backend->end_run();
