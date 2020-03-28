@@ -93,6 +93,9 @@ namespace benzene::vulkan {
         size_t current_frame;
         VertexBuffer vertices;
         IndexBuffer indices;
+        std::vector<Buffer> ubos;
+        vk::DescriptorPool descriptor_pool;
+        std::vector<vk::DescriptorSet> descriptor_sets;
         std::vector<vk::Semaphore> image_available, render_finished;
         std::vector<vk::Fence> in_flight_fences, images_in_flight;
         std::vector<vk::CommandBuffer> command_buffers;

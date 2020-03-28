@@ -5,11 +5,6 @@
 #include "shader.hpp"
 #include "swap_chain.hpp"
 
-#define GLM_FORCE_RADIANS
-#define GLM_FORCE_DEPTH_ZERO_TO_ONE
-#include <glm/glm.hpp>
-#include <glm/gtc/matrix_transform.hpp>
-
 namespace benzene::vulkan
 {
     struct Vertex {
@@ -38,6 +33,12 @@ namespace benzene::vulkan
 
             return desc;
         }
+    };
+
+    struct UniformBufferObject {
+        glm::mat4 model; // TODO: Do i want to use a push constant for this since it changes every model
+        glm::mat4 view;
+        glm::mat4 proj;
     };
 
     template<typename T>
@@ -117,6 +118,14 @@ namespace benzene::vulkan
             return pipeline;
         }
 
+        vk::DescriptorSetLayout& get_descriptor_set_layout(){
+            return descriptor_set_layout;
+        }
+
+        vk::PipelineLayout& get_layout(){
+            return layout;
+        }
+
         void clean();
 
         private:
@@ -125,6 +134,7 @@ namespace benzene::vulkan
 
         RenderPass renderpass;
         
+        vk::DescriptorSetLayout descriptor_set_layout;
         vk::PipelineLayout layout;
         vk::Pipeline pipeline;
     };

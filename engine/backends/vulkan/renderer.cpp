@@ -104,7 +104,7 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     rasterizer.polygonMode = vk::PolygonMode::eFill;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
-    rasterizer.frontFace = vk::FrontFace::eClockwise;
+    rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
     rasterizer.depthBiasEnable = false;
 
     vk::PipelineMultisampleStateCreateInfo multisampling{};
@@ -137,9 +137,21 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     dynamic_state.dynamicStateCount = 2;
     dynamic_state.pDynamicStates = dynamic_states;
 
+    vk::DescriptorSetLayoutBinding ubo_layout_binding{};
+    ubo_layout_binding.binding = 0;
+    ubo_layout_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
+    ubo_layout_binding.descriptorCount = 1;
+    ubo_layout_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+    vk::DescriptorSetLayoutCreateInfo layout_info{};
+    layout_info.bindingCount = 1;
+    layout_info.pBindings = &ubo_layout_binding;
+    
+    descriptor_set_layout = instance->device.createDescriptorSetLayout(layout_info);
+
     vk::PipelineLayoutCreateInfo layout_create_info{};
-    layout_create_info.setLayoutCount = 0;
-    layout_create_info.pSetLayouts = nullptr;
+    layout_create_info.setLayoutCount = 1;
+    layout_create_info.pSetLayouts = &descriptor_set_layout;
     layout_create_info.pushConstantRangeCount = 0;
     layout_create_info.pPushConstantRanges = nullptr;
 
@@ -171,6 +183,7 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
 }
 
 void RenderPipeline::clean(){
+    instance->device.destroyDescriptorSetLayout(this->descriptor_set_layout);
     instance->device.destroyPipeline(this->pipeline);
     instance->device.destroyPipelineLayout(this->layout);
     renderpass.clean();

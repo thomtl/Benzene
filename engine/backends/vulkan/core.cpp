@@ -175,6 +175,25 @@ void Backend::frame_update(){
 
     images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
 
+    auto update_uniform_buffer = [this, i = image_index.value](){
+        static auto start_time = std::chrono::high_resolution_clock::now();
+
+        auto current_time = std::chrono::high_resolution_clock::now();
+        auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+        ubos[i].map();
+
+        auto& ubo = *(UniformBufferObject*)ubos[i].data();
+
+        ubo.model = glm::rotate(glm::mat4{1.0f}, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+        ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 0.0f, 1.0f});
+        ubo.proj = glm::perspective(glm::radians(45.0f), this->swapchain.get_extent().width / (float)this->swapchain.get_extent().height, 0.1f, 10.0f);
+        ubo.proj[1][1] *= -1; // GL compat
+
+        ubos[i].unmap();
+    };
+    update_uniform_buffer();
+
     imgui_renderer.update_buffers(image_index.value);
     this->build_command_buffer(image_index.value);
 
@@ -422,6 +441,11 @@ void Backend::init_physical_device(){
 }
 
 void Backend::cleanup_renderer(){
+    for(auto& ubo : ubos)
+        ubo.clean();
+
+    this->instance.device.destroyDescriptorPool(descriptor_pool);
+
     for(auto& fb : framebuffers)
         this->instance.device.destroyFramebuffer(fb);
 
@@ -448,6 +472,50 @@ void Backend::recreate_renderer(){
 }
 
 void Backend::create_renderer(){
+    this->ubos.clear();
+    for(size_t i = 0; i < this->swapchain.get_images().size(); i++)
+        this->ubos.emplace_back(&instance, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
+    
+    vk::DescriptorPoolSize pool_size{};
+    pool_size.type = vk::DescriptorType::eUniformBuffer;
+    pool_size.descriptorCount = swapchain.get_images().size();
+    
+    vk::DescriptorPoolCreateInfo pool_info{};
+    pool_info.poolSizeCount = 1;
+    pool_info.pPoolSizes = &pool_size;
+    pool_info.maxSets = swapchain.get_images().size();
+
+    descriptor_pool = instance.device.createDescriptorPool(pool_info);
+
+    std::vector<vk::DescriptorSetLayout> layouts{};
+    layouts.resize(swapchain.get_images().size(), this->pipeline.get_descriptor_set_layout());
+
+    vk::DescriptorSetAllocateInfo set_alloc_info{};
+    set_alloc_info.descriptorPool = descriptor_pool;
+    set_alloc_info.descriptorSetCount = layouts.size();
+    set_alloc_info.pSetLayouts = layouts.data();
+
+    descriptor_sets = instance.device.allocateDescriptorSets(set_alloc_info);
+
+    for(size_t i = 0; i < swapchain.get_images().size(); i++){
+        vk::DescriptorBufferInfo buf_info{};
+        buf_info.buffer = ubos[i].handle();
+        buf_info.offset = 0;
+        buf_info.range = sizeof(UniformBufferObject);
+
+        vk::WriteDescriptorSet descriptor_write{};
+        descriptor_write.dstSet = descriptor_sets[i];
+        descriptor_write.dstBinding = 0;
+        descriptor_write.dstArrayElement = 0;
+        descriptor_write.descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptor_write.descriptorCount = 1;
+        descriptor_write.pBufferInfo = &buf_info;
+        descriptor_write.pImageInfo = nullptr;
+        descriptor_write.pTexelBufferView = nullptr;
+
+        instance.device.updateDescriptorSets({descriptor_write}, {});
+    }
+
     this->framebuffers.clear();
     for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
         vk::ImageView attachments[] = {
@@ -509,6 +577,7 @@ void Backend::build_command_buffer(size_t i){
     this->command_buffers[i].bindIndexBuffer(indices.handle(), 0, vk::IndexType::eUint16);
     this->command_buffers[i].setViewport(0, {viewport});
     this->command_buffers[i].setScissor(0, {scissor});
+    this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
 
     this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
 
