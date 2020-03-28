@@ -149,11 +149,16 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     
     descriptor_set_layout = instance->device.createDescriptorSetLayout(layout_info);
 
+    vk::PushConstantRange push_constant_range{};
+    push_constant_range.stageFlags = vk::ShaderStageFlagBits::eVertex;
+    push_constant_range.size = sizeof(PushConstants);
+    push_constant_range.offset = 0;
+
     vk::PipelineLayoutCreateInfo layout_create_info{};
     layout_create_info.setLayoutCount = 1;
     layout_create_info.pSetLayouts = &descriptor_set_layout;
-    layout_create_info.pushConstantRangeCount = 0;
-    layout_create_info.pPushConstantRanges = nullptr;
+    layout_create_info.pushConstantRangeCount = 1;
+    layout_create_info.pPushConstantRanges = &push_constant_range;
 
     this->layout = instance->device.createPipelineLayout(layout_create_info);
             

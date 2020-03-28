@@ -155,7 +155,7 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
             continue; // Already exists
         
         BackendModel item{};
-        item.pos = {model->x, model->y, model->z};
+        item.model = model;
 
         std::vector<Vertex> internal_vertices{};
         for(auto& vertex : model->mesh.vertices){
@@ -189,16 +189,10 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
     images_in_flight[image_index.value] = this->in_flight_fences[this->current_frame];
 
     auto update_uniform_buffer = [this, i = image_index.value](){
-        static auto start_time = std::chrono::high_resolution_clock::now();
-
-        auto current_time = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
         ubos[i].map();
 
         auto& ubo = *(UniformBufferObject*)ubos[i].data();
 
-        ubo.model = glm::rotate(glm::mat4{1.0f}, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
         ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 0.0f, 1.0f});
         ubo.proj = glm::perspective(glm::radians(45.0f), this->swapchain.get_extent().width / (float)this->swapchain.get_extent().height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1; // GL compat
@@ -573,6 +567,8 @@ void Backend::build_command_buffer(size_t i){
 
     this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
     this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+    this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+
 
     vk::Viewport viewport{};
     viewport.x = 0;
@@ -589,10 +585,22 @@ void Backend::build_command_buffer(size_t i){
     this->command_buffers[i].setViewport(0, {viewport});
     this->command_buffers[i].setScissor(0, {scissor});
 
+
     for(auto& [id, model] : internal_models){
         this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
         this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
-        this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+
+        static auto start_time = std::chrono::high_resolution_clock::now();
+        auto current_time = std::chrono::high_resolution_clock::now();
+        auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+
+        PushConstants pc{};
+
+        pc.model = glm::translate(glm::mat4{1.0f}, glm::vec3{model.model->x, model.model->y, model.model->z});
+
+        pc.model = glm::rotate(pc.model, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+
+        this->command_buffers[i].pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
         this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
     }
 

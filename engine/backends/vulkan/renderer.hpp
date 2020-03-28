@@ -36,9 +36,12 @@ namespace benzene::vulkan
     };
 
     struct UniformBufferObject {
-        glm::mat4 model; // TODO: Do i want to use a push constant for this since it changes every model
         glm::mat4 view;
         glm::mat4 proj;
+    };
+
+    struct PushConstants {
+        glm::mat4 model;
     };
 
     template<typename T>

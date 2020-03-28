@@ -41,7 +41,8 @@ namespace benzene::vulkan {
             vertices.clean();
         }
         glm::vec3 pos;
-
+        
+        Model* model;
         VertexBuffer vertices;
         IndexBuffer indices;
     };

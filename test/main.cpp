@@ -27,10 +27,19 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
     engine.add_model(&model);
 
-    engine.run([](benzene::FrameData& data){
+    benzene::Model model2{};
+    model2.mesh = mesh;
+    model2.x = 0;
+    model2.y = 0;
+
+    engine.add_model(&model2);
+
+    engine.run([&model, &model2](benzene::FrameData& data){
         ImGui::Begin("Test");
 
         ImGui::TextUnformatted("This is a debug window made in the main loop\n");
+        ImGui::SliderFloat3("Model 1: ", &model.x, -5, 5);
+        ImGui::SliderFloat3("Model 2: ", &model2.x, -5, 5);
 
         ImGui::End();
 
