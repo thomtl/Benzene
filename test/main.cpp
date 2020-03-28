@@ -5,14 +5,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 {
     benzene::Instance engine{"Benzene-test", 800, 600};
 
-    const std::vector<benzene::Mesh::Vertex> raw_vertices = {
-        {-0.5f, -0.5f, 1.0f, 0.0f, 0.0f},
-        {0.5f, -0.5f, 0.0f, 1.0f, 0.0f},
-        {0.5f, 0.5f, 0.0f, 0.0f, 1.0f},
-        {-0.5f, 0.5f, 1.0f, 1.0f, 1.0f}
+    std::vector<benzene::Mesh::Vertex> raw_vertices = {
+        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
+        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}},
+        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}},
+        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}}
     };
     
-    const std::vector<uint16_t> raw_indices = {
+    std::vector<uint16_t> raw_indices = {
         0, 1, 2, 2, 3, 0
     };
 
@@ -22,15 +22,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
     benzene::Model model{};
     model.mesh = mesh;
-    model.x = 0;
-    model.y = 0;
+    model.pos = {0, 0, 0};
 
     engine.add_model(&model);
 
     benzene::Model model2{};
     model2.mesh = mesh;
-    model2.x = 0;
-    model2.y = 0;
+    model2.pos = {0, 0, 0};
 
     engine.add_model(&model2);
 
@@ -38,8 +36,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
         ImGui::Begin("Test");
 
         ImGui::TextUnformatted("This is a debug window made in the main loop\n");
-        ImGui::SliderFloat3("Model 1: ", &model.x, -5, 5);
-        ImGui::SliderFloat3("Model 2: ", &model2.x, -5, 5);
+        ImGui::SliderFloat3("Model 1: ", &model.pos.x, -5, 5);
+        ImGui::SliderFloat3("Model 2: ", &model2.pos.x, -5, 5);
 
         ImGui::End();
 

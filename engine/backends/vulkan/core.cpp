@@ -160,8 +160,8 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
         std::vector<Vertex> internal_vertices{};
         for(auto& vertex : model->mesh.vertices){
             auto& item = internal_vertices.emplace_back();
-            item.pos = {vertex.x, vertex.y};
-            item.colour = {vertex.r, vertex.g, vertex.b};
+            item.pos = vertex.pos;
+            item.colour = vertex.colour;
         }
 
         item.vertices = VertexBuffer{&this->instance, internal_vertices, vk::BufferUsageFlagBits::eVertexBuffer};
@@ -596,7 +596,7 @@ void Backend::build_command_buffer(size_t i){
 
         PushConstants pc{};
 
-        pc.model = glm::translate(glm::mat4{1.0f}, glm::vec3{model.model->x, model.model->y, model.model->z});
+        pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
 
         pc.model = glm::rotate(pc.model, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
 

@@ -8,7 +8,7 @@
 namespace benzene::vulkan
 {
     struct Vertex {
-        glm::vec2 pos;
+        glm::vec3 pos;
         glm::vec3 colour;
 
         static vk::VertexInputBindingDescription get_binding_description(){
@@ -23,7 +23,7 @@ namespace benzene::vulkan
             std::array<vk::VertexInputAttributeDescription, 2> desc{};
             desc[0].binding = 0;
             desc[0].location = 0;
-            desc[0].format = vk::Format::eR32G32Sfloat;
+            desc[0].format = vk::Format::eR32G32B32Sfloat;
             desc[0].offset = offsetof(Vertex, pos);
 
             desc[1].binding = 0;

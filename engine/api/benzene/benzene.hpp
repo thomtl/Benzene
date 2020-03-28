@@ -11,13 +11,17 @@
 #include <unordered_map>
 #include <vector>
 
+#define GLM_FORCE_RADIANS
+#define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#include <glm/glm.hpp>
+
 
 namespace benzene
 {
     struct Mesh {
         struct Vertex {
-            float x, y;
-            float r, g, b;
+            glm::vec3 pos, colour;
         };
 
         std::vector<Vertex> vertices;
@@ -25,7 +29,7 @@ namespace benzene
     };
 
     struct Model {
-        float x, y, z;
+        glm::vec3 pos;
         Mesh mesh;
     };
 
