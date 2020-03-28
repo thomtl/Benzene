@@ -75,6 +75,10 @@ namespace benzene::vulkan
             staging_buf.clean();
         }
 
+        size_t size(){
+            return buf.size() / sizeof(T);
+        }
+
         void clean(){
             this->buf.clean();
         }

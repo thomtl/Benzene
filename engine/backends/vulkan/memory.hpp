@@ -7,11 +7,11 @@ namespace benzene::vulkan
     class Buffer {
         public:
         Buffer(): internal_data{nullptr}, instance{nullptr}, buf{nullptr}, allocation{nullptr} {}
-        Buffer(Instance* instance, size_t size, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): internal_data{nullptr}, instance{instance} {
-            if(size == 0)
-                size = 1;
+        Buffer(Instance* instance, size_t length, vk::BufferUsageFlags usage, vk::MemoryPropertyFlags properties): length{length}, internal_data{nullptr}, instance{instance} {
+            if(length == 0)
+                length = 1;
             vk::BufferCreateInfo buffer_info{};
-            buffer_info.size = size;
+            buffer_info.size = length;
             buffer_info.usage = usage;
             buffer_info.sharingMode = vk::SharingMode::eExclusive;
             
@@ -60,7 +60,12 @@ namespace benzene::vulkan
             return allocation;
         }
 
+        size_t size(){
+            return length;
+        }
+
         private:
+        size_t length;
         void* internal_data;
         Instance* instance;
         vk::Buffer buf;

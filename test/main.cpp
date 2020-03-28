@@ -5,6 +5,28 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 {
     benzene::Instance engine{"Benzene-test", 800, 600};
 
+    const std::vector<benzene::Mesh::Vertex> raw_vertices = {
+        {-0.5f, -0.5f, 1.0f, 0.0f, 0.0f},
+        {0.5f, -0.5f, 0.0f, 1.0f, 0.0f},
+        {0.5f, 0.5f, 0.0f, 0.0f, 1.0f},
+        {-0.5f, 0.5f, 1.0f, 1.0f, 1.0f}
+    };
+    
+    const std::vector<uint16_t> raw_indices = {
+        0, 1, 2, 2, 3, 0
+    };
+
+    benzene::Mesh mesh{};
+    mesh.indices = raw_indices;
+    mesh.vertices = raw_vertices;
+
+    benzene::Model model{};
+    model.mesh = mesh;
+    model.x = 0;
+    model.y = 0;
+
+    engine.add_model(&model);
+
     engine.run([](benzene::FrameData& data){
         ImGui::Begin("Test");
 

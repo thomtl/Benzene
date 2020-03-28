@@ -45,7 +45,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
             this->backend->draw_debug_window();
 
         ImGui::Render();
-        this->backend->frame_update();
+        this->backend->frame_update(render_models);
     }
     this->backend->end_run();
 }
@@ -56,4 +56,10 @@ benzene::Instance::~Instance(){
     glfwDestroyWindow(window);
 
     glfwTerminate();
+}
+
+benzene::ModelId benzene::Instance::add_model(benzene::Model* model){
+    auto id = id_gen.next();
+    this->render_models[id] = model;
+    return id;
 }

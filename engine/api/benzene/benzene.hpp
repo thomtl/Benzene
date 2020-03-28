@@ -8,10 +8,29 @@
 #include <functional>
 #include <memory>
 #include <string_view>
+#include <unordered_map>
+#include <vector>
 
 
 namespace benzene
 {
+    struct Mesh {
+        struct Vertex {
+            float x, y;
+            float r, g, b;
+        };
+
+        std::vector<Vertex> vertices;
+        std::vector<uint16_t> indices;
+    };
+
+    struct Model {
+        float x, y, z;
+        Mesh mesh;
+    };
+
+    using ModelId = uint64_t;
+
     class IBackend {
         public:
         virtual ~IBackend() {}
@@ -19,7 +38,7 @@ namespace benzene
         virtual void mouse_button_callback(int button, bool state) = 0;
         virtual void mouse_pos_callback(double x, double y) = 0;
         virtual void mouse_scroll_callback(double xoffset, double yoffset) = 0;
-        virtual void frame_update() = 0;
+        virtual void frame_update(std::unordered_map<ModelId, Model*>& models) = 0;
         virtual void end_run() = 0;
         virtual void draw_debug_window() = 0;
     };
@@ -36,9 +55,21 @@ namespace benzene
 
         void run(std::function<void(FrameData&)> functor);
 
+        ModelId add_model(Model* model);
+
         private:
         GLFWwindow* window;
         std::unique_ptr<IBackend> backend; 
         size_t width, height;
+        struct IdGen {
+            IdGen(): curr{0} {}
+
+            uint64_t next(){
+                return curr++;
+            }
+            private:
+            uint64_t curr;
+        } id_gen;
+        std::unordered_map<ModelId, Model*> render_models;
     };
 } // namespace benzene

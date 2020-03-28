@@ -35,12 +35,23 @@ namespace benzene::vulkan {
         "VK_LAYER_KHRONOS_validation"
     };
 
+    struct BackendModel {
+        void clean(){
+            indices.clean();
+            vertices.clean();
+        }
+        glm::vec3 pos;
+
+        VertexBuffer vertices;
+        IndexBuffer indices;
+    };
+
     class Backend : public IBackend {
         public:
         Backend(const char* application_name, GLFWwindow* window);
         ~Backend();
 
-        void frame_update();
+        void frame_update(std::unordered_map<ModelId, Model*>& models);
         void end_run();
 
         private:
@@ -91,8 +102,6 @@ namespace benzene::vulkan {
         Instance instance; 
         bool framebuffer_resized;
         size_t current_frame;
-        VertexBuffer vertices;
-        IndexBuffer indices;
         std::vector<Buffer> ubos;
         vk::DescriptorPool descriptor_pool;
         std::vector<vk::DescriptorSet> descriptor_sets;
@@ -112,5 +121,7 @@ namespace benzene::vulkan {
         std::array<float, 100> last_frame_times;
         std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
         uint64_t frame_counter, fps;
+
+        std::unordered_map<ModelId, BackendModel> internal_models;
     };
 } // namespace benzene::vulkan

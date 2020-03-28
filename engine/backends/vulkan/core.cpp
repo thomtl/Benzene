@@ -4,17 +4,6 @@
 
 using namespace benzene::vulkan;
 
-const std::vector<Vertex> raw_vertices = {
-    {{-0.5f, -0.5f}, {1.0f, 0.0f, 0.0f}},
-    {{0.5f, -0.5f}, {0.0f, 1.0f, 0.0f}},
-    {{0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},
-    {{-0.5f, 0.5f}, {1.0f, 1.0f, 1.0f}}
-};
-    
-const std::vector<uint16_t> raw_indices = {
-    0, 1, 2, 2, 3, 0
-};
-
 #pragma region backend
 
 Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
@@ -102,8 +91,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     this->instance.command_pool = this->instance.device.createCommandPool(pool_info);
 
-    this->vertices = VertexBuffer{&this->instance, {raw_vertices}, vk::BufferUsageFlagBits::eVertexBuffer};
-    this->indices = IndexBuffer{&this->instance, {raw_indices}, vk::BufferUsageFlagBits::eIndexBuffer};
+    //this->vertices = VertexBuffer{&this->instance, {raw_vertices}, vk::BufferUsageFlagBits::eVertexBuffer};
+    //this->indices = IndexBuffer{&this->instance, {raw_indices}, vk::BufferUsageFlagBits::eIndexBuffer};
 
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain};
@@ -130,11 +119,12 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
 }
 
 Backend::~Backend(){
+    for(auto& [id, model] : internal_models)
+        model.clean();
+
     this->imgui_renderer.clean();
     this->cleanup_renderer();
 
-    this->vertices.clean();
-    this->indices.clean();
 
     this->pipeline.clean();
 
@@ -155,8 +145,31 @@ Backend::~Backend(){
     this->instance.instance.destroy();
 }
 
-void Backend::frame_update(){
+void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
     auto time_begin = std::chrono::high_resolution_clock::now();
+
+    // First things first, create state of models that the backend understands
+    for(auto& [id, model] : models){
+        auto it = internal_models.find(id);
+        if(it != internal_models.end())
+            continue; // Already exists
+        
+        BackendModel item{};
+        item.pos = {model->x, model->y, model->z};
+
+        std::vector<Vertex> internal_vertices{};
+        for(auto& vertex : model->mesh.vertices){
+            auto& item = internal_vertices.emplace_back();
+            item.pos = {vertex.x, vertex.y};
+            item.colour = {vertex.r, vertex.g, vertex.b};
+        }
+
+        item.vertices = VertexBuffer{&this->instance, internal_vertices, vk::BufferUsageFlagBits::eVertexBuffer};
+        item.indices = IndexBuffer{&this->instance, model->mesh.indices, vk::BufferUsageFlagBits::eIndexBuffer};
+
+        internal_models[id] = std::move(item);
+    }
+
     this->instance.device.waitForFences({this->in_flight_fences[this->current_frame]}, true, UINT64_MAX);
     vk::ResultValue<uint32_t> image_index{vk::Result::eSuccess, 0};
     try {
@@ -573,13 +586,15 @@ void Backend::build_command_buffer(size_t i){
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = this->swapchain.get_extent();
 
-    this->command_buffers[i].bindVertexBuffers(0, {vertices.handle()}, {0});
-    this->command_buffers[i].bindIndexBuffer(indices.handle(), 0, vk::IndexType::eUint16);
     this->command_buffers[i].setViewport(0, {viewport});
     this->command_buffers[i].setScissor(0, {scissor});
-    this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
 
-    this->command_buffers[i].drawIndexed(raw_indices.size(), 1, 0, 0, 0);
+    for(auto& [id, model] : internal_models){
+        this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
+        this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+        this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+        this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
+    }
 
     imgui_renderer.draw_frame(i, this->command_buffers[i]);
 
