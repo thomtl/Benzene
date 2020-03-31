@@ -30,6 +30,8 @@ namespace benzene
 
     struct Model {
         glm::vec3 pos;
+        glm::vec3 rotation;
+        glm::vec3 scale;
         Mesh mesh;
     };
 

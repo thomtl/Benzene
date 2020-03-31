@@ -572,9 +572,10 @@ void Backend::create_renderer(){
 }
 
 void Backend::build_command_buffer(size_t i){
+    auto& cmd = this->command_buffers[i];
     vk::CommandBufferBeginInfo begin_info{};
         
-    this->command_buffers[i].begin(begin_info);
+    cmd.begin(begin_info);
 
     vk::RenderPassBeginInfo render_info{};
     render_info.renderPass = this->pipeline.get_render_pass().handle();
@@ -588,10 +589,9 @@ void Backend::build_command_buffer(size_t i){
     render_info.clearValueCount = 1;
     render_info.pClearValues = &clear_value;
 
-    this->command_buffers[i].beginRenderPass(render_info, vk::SubpassContents::eInline);
-    this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
-    this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-
+    cmd.beginRenderPass(render_info, vk::SubpassContents::eInline);
+    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
 
     vk::Viewport viewport{};
     viewport.x = 0;
@@ -605,50 +605,39 @@ void Backend::build_command_buffer(size_t i){
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = this->swapchain.get_extent();
 
-    this->command_buffers[i].setViewport(0, {viewport});
-    this->command_buffers[i].setScissor(0, {scissor});
+    cmd.setViewport(0, {viewport});
+    cmd.setScissor(0, {scissor});
 
-
-    for(auto& [id, model] : internal_models){
-        this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
-        this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
-
-        //static auto start_time = std::chrono::high_resolution_clock::now();
-        //auto current_time = std::chrono::high_resolution_clock::now();
-        //auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
-
-        PushConstants pc{};
-
-        pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
-        //pc.model = glm::rotate(pc.model, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
-
-        this->command_buffers[i].pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
-        this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
-    }
-
-    if constexpr (enable_outline){
-        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_pipeline());
-        this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-        this->command_buffers[i].setViewport(0, {viewport});
-        this->command_buffers[i].setScissor(0, {scissor});
-
+    auto draw_all_models = [this, &cmd](){
         for(auto& [id, model] : internal_models){
-            this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
-            this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+            cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
+            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
 
             PushConstants pc{};
             pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
-            this->command_buffers[i].pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
+            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
+            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+            pc.model = glm::scale(pc.model, model.model->scale);
 
-            this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
+            cmd.pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
+            cmd.drawIndexed(model.indices.size(), 1, 0, 0, 0);
         }
+    };
+
+    draw_all_models();
+
+    if constexpr (enable_outline){
+        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_pipeline());
+        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+
+        draw_all_models(); // Draw them again but this time with the wireframe pipeline
     }
 
-    imgui_renderer.draw_frame(i, this->command_buffers[i]);
+    imgui_renderer.draw_frame(i, cmd);
 
-
-    this->command_buffers[i].endRenderPass();
-    this->command_buffers[i].end();
+    cmd.endRenderPass();
+    cmd.end();
 }
 
 void Backend::draw_debug_window(){
