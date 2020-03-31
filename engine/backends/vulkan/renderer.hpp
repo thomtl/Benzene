@@ -114,8 +114,13 @@ namespace benzene::vulkan
 
     class RenderPipeline {
         public:
+        struct Options {
+            std::vector<Shader> shaders;
+            vk::PolygonMode polygon_mode;
+        };
+
         RenderPipeline();
-        RenderPipeline(Instance* instance, SwapChain* swapchain);
+        RenderPipeline(Instance* instance, SwapChain* swapchain, Options& options);
 
         RenderPass& get_render_pass(){
             return renderpass;

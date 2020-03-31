@@ -57,26 +57,9 @@ vk::RenderPass& RenderPass::handle(){
 
 #pragma region pipeline
 
+
 RenderPipeline::RenderPipeline(): instance{nullptr}, swapchain{nullptr}, renderpass{}, layout{nullptr}, pipeline{nullptr} {}
-RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instance{instance}, swapchain{swapchain} {
-    auto vert_code = benzene::read_binary_file("../engine/shaders/vertex.spv");
-    Shader vertex{instance, vert_code};
-
-    auto frag_code = benzene::read_binary_file("../engine/shaders/fragment.spv");
-    Shader fragment{instance, frag_code};
-
-    vk::PipelineShaderStageCreateInfo vert_info{};
-    vert_info.stage = vk::ShaderStageFlagBits::eVertex;
-    vert_info.module = vertex.handle();
-    vert_info.pName = "main";
-
-    vk::PipelineShaderStageCreateInfo frag_info{};
-    frag_info.stage = vk::ShaderStageFlagBits::eFragment;
-    frag_info.module = fragment.handle();
-    frag_info.pName = "main";
-
-    vk::PipelineShaderStageCreateInfo shader_stages[] = {vert_info, frag_info};
-
+RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderPipeline::Options& options): instance{instance}, swapchain{swapchain} {
     auto binding_description = Vertex::get_binding_description();
     auto attribute_descriptions = Vertex::get_attribute_descriptions();
 
@@ -90,8 +73,6 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     input_assembly_create_info.topology = vk::PrimitiveTopology::eTriangleList;
     input_assembly_create_info.primitiveRestartEnable = false;
 
-            
-
     vk::PipelineViewportStateCreateInfo viewport_create_info{};
     viewport_create_info.viewportCount = 1;
     viewport_create_info.pViewports = nullptr; // Dynamic and thus ignored
@@ -101,7 +82,7 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     vk::PipelineRasterizationStateCreateInfo rasterizer{};
     rasterizer.depthClampEnable = false;
     rasterizer.rasterizerDiscardEnable = false;
-    rasterizer.polygonMode = vk::PolygonMode::eFill;
+    rasterizer.polygonMode = options.polygon_mode;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = vk::CullModeFlagBits::eBack;
     rasterizer.frontFace = vk::FrontFace::eCounterClockwise;
@@ -128,14 +109,14 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     colour_blending.blendConstants[2] = 0.0f;
     colour_blending.blendConstants[3] = 0.0f;
 
-    vk::DynamicState dynamic_states[] = {
+    std::array<vk::DynamicState, 2> dynamic_states = {
         vk::DynamicState::eViewport,
         vk::DynamicState::eScissor
     };
 
     vk::PipelineDynamicStateCreateInfo dynamic_state{};
-    dynamic_state.dynamicStateCount = 2;
-    dynamic_state.pDynamicStates = dynamic_states;
+    dynamic_state.dynamicStateCount = dynamic_states.size();
+    dynamic_state.pDynamicStates = dynamic_states.data();
 
     vk::DescriptorSetLayoutBinding ubo_layout_binding{};
     ubo_layout_binding.binding = 0;
@@ -164,9 +145,13 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
             
     this->renderpass = RenderPass{instance, swapchain};
 
+    std::vector<vk::PipelineShaderStageCreateInfo> shader_stages{};
+    for(auto& shader : options.shaders)
+        shader_stages.push_back(shader.get_stage_create_info());
+
     vk::GraphicsPipelineCreateInfo pipeline_create_info{};
-    pipeline_create_info.stageCount = 2;
-    pipeline_create_info.pStages = shader_stages;
+    pipeline_create_info.stageCount = shader_stages.size();
+    pipeline_create_info.pStages = shader_stages.data();
     pipeline_create_info.pVertexInputState = &vertex_input_create_info;
     pipeline_create_info.pInputAssemblyState = &input_assembly_create_info;
     pipeline_create_info.pViewportState = &viewport_create_info;           
@@ -181,10 +166,6 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain): instan
     pipeline_create_info.basePipelineIndex = -1;
 
     this->pipeline = instance->device.createGraphicsPipeline({nullptr}, pipeline_create_info);
-            
-
-    vertex.clean();
-    fragment.clean();
 }
 
 void RenderPipeline::clean(){

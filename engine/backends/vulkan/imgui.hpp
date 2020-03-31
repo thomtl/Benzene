@@ -267,10 +267,10 @@ namespace benzene::vulkan
             vertex_input.pVertexAttributeDescriptions = vertex_input_attributes.data();
 
             auto vert_code = benzene::read_binary_file("../engine/shaders/imgui_vertex.spv");
-            Shader vertex{instance, vert_code};
+            Shader vertex{instance, vert_code, "main", vk::ShaderStageFlagBits::eVertex};
 
             auto frag_code = benzene::read_binary_file("../engine/shaders/imgui_fragment.spv");
-            Shader fragment{instance, frag_code};
+            Shader fragment{instance, frag_code, "main", vk::ShaderStageFlagBits::eFragment};
 
             vk::PipelineShaderStageCreateInfo vert_info{};
             vert_info.stage = vk::ShaderStageFlagBits::eVertex;

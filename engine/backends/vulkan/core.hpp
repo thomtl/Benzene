@@ -115,6 +115,10 @@ namespace benzene::vulkan {
 
         SwapChain swapchain;
         RenderPipeline pipeline;
+
+        #ifdef ENABLE_OUTLINE
+        RenderPipeline wireframe_pipeline;
+        #endif
         
         uint32_t graphics_queue_id, presentation_queue_id;
 

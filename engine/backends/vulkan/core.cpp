@@ -91,11 +91,26 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     pool_info.flags = vk::CommandPoolCreateFlagBits::eResetCommandBuffer;
     this->instance.command_pool = this->instance.device.createCommandPool(pool_info);
 
-    //this->vertices = VertexBuffer{&this->instance, {raw_vertices}, vk::BufferUsageFlagBits::eVertexBuffer};
-    //this->indices = IndexBuffer{&this->instance, {raw_indices}, vk::BufferUsageFlagBits::eIndexBuffer};
-
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
-    this->pipeline = RenderPipeline{&this->instance, &this->swapchain};
+    RenderPipeline::Options pipeline_opts{};
+    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
+    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
+    pipeline_opts.polygon_mode = vk::PolygonMode::eFill;
+    this->pipeline = RenderPipeline{&this->instance, &this->swapchain, pipeline_opts};
+
+    for(auto& shader : pipeline_opts.shaders)
+        shader.clean();
+
+    if constexpr (enable_outline){
+        RenderPipeline::Options wireframe_pipeline_opts{};
+        wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/line_fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
+        wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
+        wireframe_pipeline_opts.polygon_mode = vk::PolygonMode::eLine;
+        this->wireframe_pipeline = RenderPipeline{&this->instance, &this->swapchain, wireframe_pipeline_opts};
+
+        for(auto& shader : wireframe_pipeline_opts.shaders)
+            shader.clean();
+    }
 
     this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass(), this->swapchain.get_images().size()};
 
@@ -127,6 +142,8 @@ Backend::~Backend(){
 
 
     this->pipeline.clean();
+    if constexpr (enable_outline)
+        this->wireframe_pipeline.clean();
 
     for(size_t i = 0; i < max_frames_in_flight; i++){
         this->instance.device.destroySemaphore(this->render_finished[i]);
@@ -193,7 +210,7 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
 
         auto& ubo = *(UniformBufferObject*)ubos[i].data();
 
-        ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 0.0f, 1.0f});
+        ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
         ubo.proj = glm::perspective(glm::radians(45.0f), this->swapchain.get_extent().width / (float)this->swapchain.get_extent().height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1; // GL compat
 
@@ -321,6 +338,8 @@ void Backend::init_logical_device(){
     }
 
     vk::PhysicalDeviceFeatures device_features{};
+    if constexpr(enable_outline)
+        device_features.fillModeNonSolid = true;
     
     vk::DeviceCreateInfo create_info{};
     create_info.pQueueCreateInfos = queue_creation_info.data();
@@ -398,6 +417,10 @@ void Backend::init_physical_device(){
                 if(!found)
                     return false;
             }
+
+            if constexpr(enable_outline)
+                if(!dev.getFeatures().fillModeNonSolid) // When outline is enabled we need fillModeNonSolid
+                    return false;
 
             return true;
         };
@@ -590,21 +613,39 @@ void Backend::build_command_buffer(size_t i){
         this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
         this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
 
-        static auto start_time = std::chrono::high_resolution_clock::now();
-        auto current_time = std::chrono::high_resolution_clock::now();
-        auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+        //static auto start_time = std::chrono::high_resolution_clock::now();
+        //auto current_time = std::chrono::high_resolution_clock::now();
+        //auto time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
         PushConstants pc{};
 
         pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
-
-        pc.model = glm::rotate(pc.model, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
+        //pc.model = glm::rotate(pc.model, time * glm::radians(90.0f), glm::vec3{0.0f, 0.0f, 1.0f});
 
         this->command_buffers[i].pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
         this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
     }
 
+    if constexpr (enable_outline){
+        this->command_buffers[i].bindPipeline(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_pipeline());
+        this->command_buffers[i].bindDescriptorSets(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+        this->command_buffers[i].setViewport(0, {viewport});
+        this->command_buffers[i].setScissor(0, {scissor});
+
+        for(auto& [id, model] : internal_models){
+            this->command_buffers[i].bindVertexBuffers(0, {model.vertices.handle()}, {0});
+            this->command_buffers[i].bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+
+            PushConstants pc{};
+            pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
+            this->command_buffers[i].pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
+
+            this->command_buffers[i].drawIndexed(model.indices.size(), 1, 0, 0, 0);
+        }
+    }
+
     imgui_renderer.draw_frame(i, this->command_buffers[i]);
+
 
     this->command_buffers[i].endRenderPass();
     this->command_buffers[i].end();
