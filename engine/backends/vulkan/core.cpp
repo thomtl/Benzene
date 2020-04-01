@@ -29,7 +29,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     if constexpr (debug) {
         print("vulkan: Supported global extensions: \n");
         for(const auto& extension : extensions)
-            print("\t - {} v{}\n", extension.extensionName, spec_version{extension.specVersion});
+            print("\t - {} v{}\n", extension.extensionName, extension.specVersion);
     }
 
     vk::ApplicationInfo info{};
@@ -67,15 +67,15 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
 
     this->init_physical_device();
     if constexpr (debug){
-        auto extensions = this->instance.gpu.enumerateDeviceExtensionProperties();
-        print("vulkan: Supported device extensions: \n");
-        for(const auto& extension : extensions)
-            print("\t - {} v{}\n", extension.extensionName, spec_version{extension.specVersion});
-
         auto supported_validation_layers = this->instance.gpu.enumerateDeviceLayerProperties();
         print("vulkan: Supported device validation layers: \n");
         for(const auto& layer : supported_validation_layers)
             print("\t - {}: {}, [Implementation version: {}, Spec version: {}]\n", layer.layerName, layer.description, layer.implementationVersion, spec_version{layer.specVersion});
+
+        auto extensions = this->instance.gpu.enumerateDeviceExtensionProperties();
+        print("vulkan: Supported device extensions: \n");
+        for(const auto& extension : extensions)
+            print("\t - {} v{}\n", extension.extensionName, extension.specVersion);
     }
 
     this->init_logical_device();
@@ -464,7 +464,7 @@ void Backend::init_physical_device(){
     if constexpr (debug) {
         print("vulkan: Physical GPUs: \n");
         for(const auto& gpu : suitable_devices)
-            print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {}] -> Score {}\n", vk::to_string(gpu.getProperties().deviceType), gpu.getProperties().deviceName, gpu.getProperties().deviceID, gpu.getProperties().vendorID, spec_version{gpu.getProperties().driverVersion}, calculate_score(gpu));
+            print("\t - Type: {}, Name: {} [DeviceID: {:#x}; VendorID: {:#x}; Driver version: {:x}] -> Score {}\n", vk::to_string(gpu.getProperties().deviceType), gpu.getProperties().deviceName, gpu.getProperties().deviceID, gpu.getProperties().vendorID, gpu.getProperties().driverVersion, calculate_score(gpu));
     }
 
     this->instance.gpu = suitable_devices[0]; // Higest rated device
