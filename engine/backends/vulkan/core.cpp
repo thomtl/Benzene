@@ -97,6 +97,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
     pipeline_opts.polygon_mode = vk::PolygonMode::eFill;
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain, pipeline_opts};
+    instance.add_debug_tag(this->pipeline.get_pipeline(), "Main pipeline");
 
     for(auto& shader : pipeline_opts.shaders)
         shader.clean();
@@ -107,7 +108,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
         wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
         wireframe_pipeline_opts.polygon_mode = vk::PolygonMode::eLine;
         this->wireframe_pipeline = RenderPipeline{&this->instance, &this->swapchain, wireframe_pipeline_opts};
-
+        instance.add_debug_tag(this->wireframe_pipeline.get_pipeline(), "Wireframe pipeline");
         for(auto& shader : wireframe_pipeline_opts.shaders)
             shader.clean();
     }
@@ -574,7 +575,6 @@ void Backend::create_renderer(){
 void Backend::build_command_buffer(size_t i){
     auto& cmd = this->command_buffers[i];
     vk::CommandBufferBeginInfo begin_info{};
-        
     cmd.begin(begin_info);
 
     vk::RenderPassBeginInfo render_info{};
@@ -589,10 +589,6 @@ void Backend::build_command_buffer(size_t i){
     render_info.clearValueCount = 1;
     render_info.pClearValues = &clear_value;
 
-    cmd.beginRenderPass(render_info, vk::SubpassContents::eInline);
-    cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
-    cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-
     vk::Viewport viewport{};
     viewport.x = 0;
     viewport.y = 0;
@@ -604,9 +600,6 @@ void Backend::build_command_buffer(size_t i){
     vk::Rect2D scissor{};
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = this->swapchain.get_extent();
-
-    cmd.setViewport(0, {viewport});
-    cmd.setScissor(0, {scissor});
 
     auto draw_all_models = [this, &cmd](){
         for(auto& [id, model] : internal_models){
@@ -625,16 +618,35 @@ void Backend::build_command_buffer(size_t i){
         }
     };
 
-    draw_all_models();
+    cmd.setViewport(0, {viewport});
+    cmd.setScissor(0, {scissor});
+    cmd.beginRenderPass(render_info, vk::SubpassContents::eInline);
+
+    {
+        CommandBufferLabel label{&instance, cmd, "Main pass", glm::vec3{0.4f, 0.61f, 0.27f}};
+        std::lock_guard label_gaurd{label};
+
+        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
+        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
+        draw_all_models();
+    }
+    
 
     if constexpr (enable_outline){
+        CommandBufferLabel label{&instance, cmd, "Wireframe pass", glm::vec3{0.4f, 0.61f, 0.27f}};
+        std::lock_guard label_gaurd{label};
+
         cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_pipeline());
         cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-
         draw_all_models(); // Draw them again but this time with the wireframe pipeline
     }
 
-    imgui_renderer.draw_frame(i, cmd);
+    {
+        CommandBufferLabel label{&instance, cmd, "ImGui pass", glm::vec3{0.4f, 0.61f, 0.27f}};
+        std::lock_guard label_gaurd{label};
+
+        imgui_renderer.draw_frame(i, cmd);
+    }
 
     cmd.endRenderPass();
     cmd.end();

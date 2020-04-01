@@ -25,8 +25,17 @@
 #include "../../core/format.hpp"
 #include "../../core/utils.hpp"
 
+#include "extra_api.hpp"
+
 namespace benzene::vulkan
 {
+    constexpr bool enable_validation = true;
+    constexpr bool debug = true;
+
+    #define ENABLE_OUTLINE true // Define needed since we want to use it in #ifdef
+    constexpr bool enable_outline = ENABLE_OUTLINE;
+    constexpr size_t max_frames_in_flight = 16;
+
     struct Instance {
         GLFWwindow* window;
         vk::Instance instance;
@@ -35,6 +44,17 @@ namespace benzene::vulkan
         vk::CommandPool command_pool;
         vk::SurfaceKHR surface;
         vma::Allocator allocator;
+
+        template<typename T>
+        void add_debug_tag([[maybe_unused]] T& item, [[maybe_unused]] const char* name){
+            if constexpr (enable_validation){
+                vk::DebugUtilsObjectNameInfoEXT name_info{};
+                name_info.objectType = T::objectType;
+                name_info.objectHandle = (uint64_t)(typename T::CType)item;
+                name_info.pObjectName = name;
+                extra_api::SetDebugUtilsObjectNameEXT(device, &name_info);
+            }            
+        }
 
         struct Queue {
             Queue(): family{0xFFFFFFFF}, handle{nullptr} {}
@@ -90,10 +110,41 @@ namespace benzene::vulkan
         vk::CommandBuffer cmd;
     };
 
-    constexpr bool enable_validation = true;
-    constexpr bool debug = true;
+    struct CommandBufferLabel {
+        CommandBufferLabel(Instance* instance, vk::CommandBuffer buffer, const char* label, glm::vec3 colour): instance{instance}, buffer{buffer}, label{label}, colour{colour} {}
 
-    #define ENABLE_OUTLINE true // Define needed since we want to use it in #ifdef
-    constexpr bool enable_outline = ENABLE_OUTLINE;
-    constexpr size_t max_frames_in_flight = 16;
+        void start(){
+            if constexpr (enable_validation){
+                vk::DebugUtilsLabelEXT label_info{};
+                label_info.pLabelName = label;
+                label_info.color[0] = colour.x;
+                label_info.color[1] = colour.y;
+                label_info.color[2] = colour.z;
+                label_info.color[3] = 1.0f;
+
+                extra_api::CmdBeginDebugUtilsLabelEXT(instance->device, buffer, &label_info);
+            }
+        }
+
+        void stop(){
+            if constexpr (enable_validation) {
+                extra_api::CmdEndDebugUtilsLabelEXT(instance->device, buffer);
+            }
+        }
+
+        void lock(){
+            start();
+        }
+
+        void unlock(){
+            stop();
+        }
+
+        private:
+        Instance* instance;
+        vk::CommandBuffer buffer;
+        const char* label;
+        glm::vec3 colour;
+    };
+
 } // namespace benzene::vulkan

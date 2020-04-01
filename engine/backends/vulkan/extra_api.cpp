@@ -13,3 +13,23 @@ void benzene::vulkan::extra_api::DestroyDebugUtilsMessengerEXT(vk::Instance inst
     if(f)
         f((VkInstance)instance, (VkDebugUtilsMessengerEXT)debug_messenger, (VkAllocationCallbacks*)allocator);
 }
+
+vk::Result benzene::vulkan::extra_api::SetDebugUtilsObjectNameEXT(vk::Device device, const vk::DebugUtilsObjectNameInfoEXT* name_info){
+    auto f = (PFN_vkSetDebugUtilsObjectNameEXT)device.getProcAddr("vkSetDebugUtilsObjectNameEXT");
+    if(f)
+        return (vk::Result)f((VkDevice)device, (const VkDebugUtilsObjectNameInfoEXT*)name_info);
+
+    return vk::Result::eErrorExtensionNotPresent;
+}
+
+void benzene::vulkan::extra_api::CmdBeginDebugUtilsLabelEXT(vk::Device dev, vk::CommandBuffer cmd, const vk::DebugUtilsLabelEXT* label){
+    auto f = (PFN_vkCmdBeginDebugUtilsLabelEXT)dev.getProcAddr("vkCmdBeginDebugUtilsLabelEXT");
+    if(f)
+        f((VkCommandBuffer)cmd, (const VkDebugUtilsLabelEXT*)label);
+}
+
+void benzene::vulkan::extra_api::CmdEndDebugUtilsLabelEXT(vk::Device dev, vk::CommandBuffer cmd){
+    auto f = (PFN_vkCmdEndDebugUtilsLabelEXT)dev.getProcAddr("vkCmdEndDebugUtilsLabelEXT");
+    if(f)
+        f((VkCommandBuffer)cmd);
+}
