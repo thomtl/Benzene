@@ -32,8 +32,8 @@ namespace benzene::vulkan
     constexpr bool enable_validation = true;
     constexpr bool debug = true;
 
-    #define ENABLE_OUTLINE true // Define needed since we want to use it in #ifdef
-    constexpr bool enable_outline = ENABLE_OUTLINE;
+    #define ENABLE_WIREFRAME_OUTLINE true // Define needed since we want to use it in #ifdef
+    constexpr bool enable_wireframe_outline = ENABLE_WIREFRAME_OUTLINE;
     constexpr size_t max_frames_in_flight = 16;
 
     struct Instance {

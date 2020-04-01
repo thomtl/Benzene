@@ -102,7 +102,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     for(auto& shader : pipeline_opts.shaders)
         shader.clean();
 
-    if constexpr (enable_outline){
+    if constexpr (enable_wireframe_outline){
         RenderPipeline::Options wireframe_pipeline_opts{};
         wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/line_fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
         wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
@@ -143,7 +143,7 @@ Backend::~Backend(){
 
 
     this->pipeline.clean();
-    if constexpr (enable_outline)
+    if constexpr (enable_wireframe_outline)
         this->wireframe_pipeline.clean();
 
     for(size_t i = 0; i < max_frames_in_flight; i++){
@@ -184,6 +184,8 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
 
         item.vertices = VertexBuffer{&this->instance, internal_vertices, vk::BufferUsageFlagBits::eVertexBuffer};
         item.indices = IndexBuffer{&this->instance, model->mesh.indices, vk::BufferUsageFlagBits::eIndexBuffer};
+        item.pipeline = &pipeline; // TODO: Have the user control this based on shaders
+        item.wireframe_pipeline = &wireframe_pipeline;
 
         internal_models[id] = std::move(item);
     }
@@ -339,7 +341,7 @@ void Backend::init_logical_device(){
     }
 
     vk::PhysicalDeviceFeatures device_features{};
-    if constexpr(enable_outline)
+    if constexpr(enable_wireframe_outline)
         device_features.fillModeNonSolid = true;
     
     vk::DeviceCreateInfo create_info{};
@@ -419,7 +421,7 @@ void Backend::init_physical_device(){
                     return false;
             }
 
-            if constexpr(enable_outline)
+            if constexpr(enable_wireframe_outline)
                 if(!dev.getFeatures().fillModeNonSolid) // When outline is enabled we need fillModeNonSolid
                     return false;
 
@@ -601,21 +603,16 @@ void Backend::build_command_buffer(size_t i){
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = this->swapchain.get_extent();
 
-    auto draw_all_models = [this, &cmd](){
-        for(auto& [id, model] : internal_models){
-            cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
-            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+    auto draw_model = [this, &cmd](BackendModel& model){
+        PushConstants pc{};
+        pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
+        pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+        pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
+        pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+        pc.model = glm::scale(pc.model, model.model->scale);
 
-            PushConstants pc{};
-            pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
-            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
-            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
-            pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
-            pc.model = glm::scale(pc.model, model.model->scale);
-
-            cmd.pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
-            cmd.drawIndexed(model.indices.size(), 1, 0, 0, 0);
-        }
+        cmd.pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
+        cmd.drawIndexed(model.indices.size(), 1, 0, 0, 0);
     };
 
     cmd.setViewport(0, {viewport});
@@ -626,19 +623,31 @@ void Backend::build_command_buffer(size_t i){
         CommandBufferLabel label{&instance, cmd, "Main pass", glm::vec3{0.4f, 0.61f, 0.27f}};
         std::lock_guard label_gaurd{label};
 
-        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->pipeline.get_pipeline());
-        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-        draw_all_models();
+        for(auto& [id, model] : internal_models){
+            cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, model.pipeline->get_pipeline());
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, model.pipeline->get_layout(), 0, {descriptor_sets[i]}, {});
+        
+            cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
+            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+
+            draw_model(model);
+        }
     }
     
 
-    if constexpr (enable_outline){
+    if constexpr (enable_wireframe_outline){
         CommandBufferLabel label{&instance, cmd, "Wireframe pass", glm::vec3{0.4f, 0.61f, 0.27f}};
         std::lock_guard label_gaurd{label};
 
-        cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_pipeline());
-        cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, this->wireframe_pipeline.get_layout(), 0, {descriptor_sets[i]}, {});
-        draw_all_models(); // Draw them again but this time with the wireframe pipeline
+        for(auto& [id, model] : internal_models){ // Draw them again but this time with the wireframe pipeline
+            cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, model.wireframe_pipeline->get_pipeline());
+            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, model.wireframe_pipeline->get_layout(), 0, {descriptor_sets[i]}, {});
+        
+            cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
+            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+
+            draw_model(model);
+        }
     }
 
     {

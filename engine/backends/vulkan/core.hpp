@@ -45,6 +45,11 @@ namespace benzene::vulkan {
         Model* model;
         VertexBuffer vertices;
         IndexBuffer indices;
+
+        RenderPipeline* pipeline;
+        #ifdef ENABLE_WIREFRAME_OUTLINE
+        RenderPipeline* wireframe_pipeline;
+        #endif
     };
 
     class Backend : public IBackend {
@@ -116,7 +121,7 @@ namespace benzene::vulkan {
         SwapChain swapchain;
         RenderPipeline pipeline;
 
-        #ifdef ENABLE_OUTLINE
+        #ifdef ENABLE_WIREFRAME_OUTLINE
         RenderPipeline wireframe_pipeline;
         #endif
         
