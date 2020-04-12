@@ -1,6 +1,11 @@
 #pragma once
 
 #define GLFW_INCLUDE_VULKAN
+
+#ifdef _WIN32
+#   include <Windows.h>
+#endif
+
 #include <GLFW/glfw3.h>
 
 #include <vulkan/vulkan.hpp>
