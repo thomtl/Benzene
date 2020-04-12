@@ -88,6 +88,10 @@ namespace benzene::vulkan {
             ImGui::GetIO().MouseWheel += (float)yoffset;
         }
 
+        void set_fps_cap(size_t fps){
+            this->fps_cap = fps;
+        }
+
         template<typename F>
         std::optional<uint32_t> get_queue_index(vk::PhysicalDevice dev, F functor){
             auto queue_families = dev.getQueueFamilyProperties();
@@ -107,7 +111,7 @@ namespace benzene::vulkan {
 
         Instance instance; 
         bool framebuffer_resized, is_wireframe;
-        size_t current_frame;
+        size_t current_frame, fps_cap;
         std::vector<Buffer> ubos;
         vk::DescriptorPool descriptor_pool;
         std::vector<vk::DescriptorSet> descriptor_sets;

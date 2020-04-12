@@ -1,5 +1,5 @@
 #include "core.hpp"
-
+#include <thread>
 #include <set>
 
 using namespace benzene::vulkan;
@@ -272,8 +272,9 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
         fps = (uint32_t)((float)frame_counter * (1000.0f / fps_timer));
         frame_counter = 0;
         last_frame_timestamp = time_end;
-
     }
+
+    std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(std::chrono::duration<double, std::milli>(1000 / this->fps_cap) - (time_end - time_begin)));
 }
 
 void Backend::end_run(){

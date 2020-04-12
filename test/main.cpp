@@ -4,6 +4,7 @@
 int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 {
     benzene::Instance engine{"Benzene-test", 800, 600};
+    //engine.get_backend().set_fps_cap(60);
 
     std::vector<benzene::Mesh::Vertex> raw_vertices = {
         {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
@@ -22,18 +23,29 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
     benzene::Model model{};
     model.mesh = mesh;
-    model.pos = {0, 0, 0};
+    model.pos = {0, 0, 0.512};
     model.scale = {1, 1, 0};
 
-    engine.add_model(&model);
+    benzene::Model model2{};
+    model2.mesh = mesh;
+    model2.pos = {0, 0, 0};
+    model2.scale = {1, 1, 0};
 
-    engine.run([&model](benzene::FrameData& data){
+    engine.add_model(&model);
+    engine.add_model(&model2);
+
+    engine.run([&](benzene::FrameData& data){
         ImGui::Begin("Test");
 
-        ImGui::TextUnformatted("This is a debug window made in the main loop\n");
-        ImGui::SliderFloat3("Position: ", &model.pos.x, -5, 5);
-        ImGui::SliderFloat3("Rotation: ", &model.rotation.x, 0, 360);
-        ImGui::SliderFloat3("Scale: ", &model.scale.x, 1, 5);
+        ImGui::TextUnformatted("Model 1\n");
+        ImGui::SliderFloat3("Position 1: ", &model.pos.x, -5, 5);
+        ImGui::SliderFloat3("Rotation 1: ", &model.rotation.x, 0, 360);
+        ImGui::SliderFloat3("Scale 1: ", &model.scale.x, 1, 5);
+
+        ImGui::TextUnformatted("Model 2\n");
+        ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -5, 5);
+        ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
+        ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);
 
         ImGui::End();
 

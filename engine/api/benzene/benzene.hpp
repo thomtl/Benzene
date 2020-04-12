@@ -47,11 +47,11 @@ namespace benzene
         virtual void frame_update(std::unordered_map<ModelId, Model*>& models) = 0;
         virtual void end_run() = 0;
         virtual void draw_debug_window() = 0;
+        virtual void set_fps_cap(size_t fps) = 0;
     };
 
     struct FrameData {
         bool should_exit, display_debug_window;
-        IBackend* backend;
     };
 
     class Instance {
@@ -60,6 +60,9 @@ namespace benzene
         ~Instance();
 
         void run(std::function<void(FrameData&)> functor);
+        IBackend& get_backend(){
+            return *backend;
+        }
 
         ModelId add_model(Model* model);
 

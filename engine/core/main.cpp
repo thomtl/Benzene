@@ -35,7 +35,6 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
 
 void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
     FrameData frame_data{};
-    frame_data.backend = this->backend.get();
     while(!glfwWindowShouldClose(window) && !frame_data.should_exit){
         glfwPollEvents();
         ImGui::NewFrame();
