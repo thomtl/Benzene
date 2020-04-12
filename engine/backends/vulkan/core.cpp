@@ -6,7 +6,7 @@ using namespace benzene::vulkan;
 
 #pragma region backend
 
-Backend::Backend(const char* application_name, GLFWwindow* window): current_frame{0} {
+Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe{false}, current_frame{0} {
     frame_time = 0.0f;
     max_frame_time = 0.0f;
     min_frame_time = 9999.0f;
@@ -99,19 +99,14 @@ Backend::Backend(const char* application_name, GLFWwindow* window): current_fram
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain, pipeline_opts};
     instance.add_debug_tag(this->pipeline.get_pipeline(), "Main pipeline");
 
+    if constexpr (enable_wireframe_outline){
+        pipeline_opts.polygon_mode = vk::PolygonMode::eLine;
+        this->wireframe_pipeline = RenderPipeline{&this->instance, &this->swapchain, pipeline_opts};
+        instance.add_debug_tag(this->wireframe_pipeline.get_pipeline(), "Wireframe pipeline");
+    }
+
     for(auto& shader : pipeline_opts.shaders)
         shader.clean();
-
-    if constexpr (enable_wireframe_outline){
-        RenderPipeline::Options wireframe_pipeline_opts{};
-        wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/line_fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
-        wireframe_pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
-        wireframe_pipeline_opts.polygon_mode = vk::PolygonMode::eLine;
-        this->wireframe_pipeline = RenderPipeline{&this->instance, &this->swapchain, wireframe_pipeline_opts};
-        instance.add_debug_tag(this->wireframe_pipeline.get_pipeline(), "Wireframe pipeline");
-        for(auto& shader : wireframe_pipeline_opts.shaders)
-            shader.clean();
-    }
 
     this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass(), this->swapchain.get_images().size()};
 
@@ -624,24 +619,11 @@ void Backend::build_command_buffer(size_t i){
         std::lock_guard label_gaurd{label};
 
         for(auto& [id, model] : internal_models){
-            cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, model.pipeline->get_pipeline());
+            if constexpr (enable_wireframe_outline)
+                cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, this->is_wireframe ? model.wireframe_pipeline->get_pipeline() : model.pipeline->get_pipeline());
+            else
+                cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, model.pipeline->get_pipeline());
             cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, model.pipeline->get_layout(), 0, {descriptor_sets[i]}, {});
-        
-            cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
-            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
-
-            draw_model(model);
-        }
-    }
-    
-
-    if constexpr (enable_wireframe_outline){
-        CommandBufferLabel label{&instance, cmd, "Wireframe pass", glm::vec3{0.4f, 0.61f, 0.27f}};
-        std::lock_guard label_gaurd{label};
-
-        for(auto& [id, model] : internal_models){ // Draw them again but this time with the wireframe pipeline
-            cmd.bindPipeline(vk::PipelineBindPoint::eGraphics, model.wireframe_pipeline->get_pipeline());
-            cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, model.wireframe_pipeline->get_layout(), 0, {descriptor_sets[i]}, {});
         
             cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
             cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
@@ -676,6 +658,9 @@ void Backend::draw_debug_window(){
 
     name = format_to_str("Driver info: {:s}", strlen(driver.driverInfo) != 0 ? driver.driverInfo : "Unknown");
     ImGui::TextUnformatted(name.c_str());
+
+    if constexpr (enable_wireframe_outline)
+        ImGui::Checkbox("Wireframe", &this->is_wireframe);
 
     std::rotate(last_frame_times.begin(), last_frame_times.begin() + 1, last_frame_times.end());
     last_frame_times.back() = this->frame_time;

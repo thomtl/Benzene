@@ -106,7 +106,7 @@ namespace benzene::vulkan {
         void draw_debug_window();
 
         Instance instance; 
-        bool framebuffer_resized;
+        bool framebuffer_resized, is_wireframe;
         size_t current_frame;
         std::vector<Buffer> ubos;
         vk::DescriptorPool descriptor_pool;
