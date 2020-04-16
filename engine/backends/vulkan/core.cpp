@@ -139,7 +139,6 @@ Backend::~Backend(){
 
     this->texture.clean();
 
-
     this->pipeline.clean();
     if constexpr (enable_wireframe_outline)
         this->wireframe_pipeline.clean();
@@ -480,6 +479,9 @@ void Backend::init_physical_device(){
 }
 
 void Backend::cleanup_renderer(){
+    this->depthImageView.clean();
+    this->depthImage.clean();
+
     for(auto& ubo : ubos)
         ubo.clean();
 
@@ -568,16 +570,20 @@ void Backend::create_renderer(){
         instance.device.updateDescriptorSets(descriptor_writes, {});
     }
 
+    this->depthImage = Image{&instance, swapchain.get_extent().width, swapchain.get_extent().height, instance.find_depth_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal};
+    this->depthImageView = ImageView{&instance, this->depthImage, instance.find_depth_format(), vk::ImageAspectFlagBits::eDepth};
+
     this->framebuffers.clear();
     for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
-        vk::ImageView attachments[] = {
-            this->swapchain.get_image_views()[i]
+        std::array<vk::ImageView, 2> attachments = {
+            this->swapchain.get_image_views()[i],
+            depthImageView.handle()
         };
         
         vk::FramebufferCreateInfo framebuffer_create_info{};
         framebuffer_create_info.renderPass = this->pipeline.get_render_pass().handle();
-        framebuffer_create_info.attachmentCount = 1;
-        framebuffer_create_info.pAttachments = attachments;
+        framebuffer_create_info.attachmentCount = attachments.size();
+        framebuffer_create_info.pAttachments = attachments.data();
         framebuffer_create_info.width = this->swapchain.get_extent().width;
         framebuffer_create_info.height = this->swapchain.get_extent().height;
         framebuffer_create_info.layers = 1;
@@ -605,10 +611,12 @@ void Backend::build_command_buffer(size_t i){
     render_info.renderArea.extent = this->swapchain.get_extent();
         
     vk::ClearColorValue clear_colour{std::array<float, 4>{0.0f, 0.0f, 0.0f, 1.0f}};
-    vk::ClearValue clear_value{};
-    clear_value.setColor(clear_colour);
-    render_info.clearValueCount = 1;
-    render_info.pClearValues = &clear_value;
+    vk::ClearDepthStencilValue depth_colour{1.0f, 0};
+    std::array<vk::ClearValue, 2> clear_values{};
+    clear_values[0].setColor(clear_colour);
+    clear_values[1].setDepthStencil(depth_colour);
+    render_info.clearValueCount = clear_values.size();
+    render_info.pClearValues = clear_values.data();
 
     vk::Viewport viewport{};
     viewport.x = 0;

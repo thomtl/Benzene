@@ -16,14 +16,31 @@ RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{insta
     colour_attachment.initialLayout = vk::ImageLayout::eUndefined;
     colour_attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
 
+    vk::AttachmentDescription depth_attachment{};
+    depth_attachment.format = instance->find_depth_format();
+    depth_attachment.samples = vk::SampleCountFlagBits::e1;
+    depth_attachment.loadOp = vk::AttachmentLoadOp::eClear;
+    depth_attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
+    depth_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    depth_attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    depth_attachment.initialLayout = vk::ImageLayout::eUndefined;
+    depth_attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+
+    std::array<vk::AttachmentDescription, 2> attachments = {colour_attachment, depth_attachment};
+
     vk::AttachmentReference colour_attachment_ref{};
     colour_attachment_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
     colour_attachment_ref.attachment = 0;
+
+    vk::AttachmentReference depth_attachment_ref{};
+    depth_attachment_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
+    depth_attachment_ref.attachment = 1;
 
     vk::SubpassDescription subpass{};
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colour_attachment_ref;
+    subpass.pDepthStencilAttachment = &depth_attachment_ref;
 
     vk::SubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -33,10 +50,9 @@ RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{insta
     dependency.dstStageMask = vk::PipelineStageFlagBits::eColorAttachmentOutput;
     dependency.dstAccessMask = vk::AccessFlagBits::eColorAttachmentWrite;
 
-            
     vk::RenderPassCreateInfo render_pass_create_info{};
-    render_pass_create_info.attachmentCount = 1;
-    render_pass_create_info.pAttachments = &colour_attachment;
+    render_pass_create_info.attachmentCount = attachments.size();
+    render_pass_create_info.pAttachments = attachments.data();
     render_pass_create_info.subpassCount = 1;
     render_pass_create_info.pSubpasses = &subpass;
     render_pass_create_info.dependencyCount = 1;
@@ -94,6 +110,15 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     multisampling.minSampleShading = 1.0f;
     multisampling.alphaToCoverageEnable = false;
     multisampling.alphaToOneEnable = false;
+
+    vk::PipelineDepthStencilStateCreateInfo depth_stencil{};
+    depth_stencil.depthTestEnable = true;
+    depth_stencil.depthWriteEnable = true;
+    depth_stencil.depthCompareOp = vk::CompareOp::eLess;
+    depth_stencil.depthBoundsTestEnable = false;
+    depth_stencil.minDepthBounds = 0.0;
+    depth_stencil.maxDepthBounds = 1.0;
+    depth_stencil.stencilTestEnable = false;
 
     vk::PipelineColorBlendAttachmentState colour_blend_attachment{};
     colour_blend_attachment.colorWriteMask = vk::ColorComponentFlagBits::eR | vk::ColorComponentFlagBits::eG | vk::ColorComponentFlagBits::eB | vk::ColorComponentFlagBits::eA;
@@ -162,6 +187,7 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     pipeline_create_info.pViewportState = &viewport_create_info;           
     pipeline_create_info.pRasterizationState = &rasterizer;
     pipeline_create_info.pMultisampleState = &multisampling;
+    pipeline_create_info.pDepthStencilState = &depth_stencil;
     pipeline_create_info.pColorBlendState = &colour_blending;
     pipeline_create_info.pDynamicState = &dynamic_state;
     pipeline_create_info.layout = layout;

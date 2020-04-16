@@ -110,12 +110,17 @@ namespace benzene::vulkan {
         void build_command_buffer(size_t i);
         void draw_debug_window();
 
+        vk::Format find_supported_format(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features);
+
         Instance instance; 
         bool framebuffer_resized, is_wireframe;
         bool fps_cap_enabled;
         size_t current_frame, fps_cap;
         std::vector<Buffer> ubos;
 
+        Image depthImage;
+        ImageView depthImageView;
+        
         Texture texture;
 
         vk::DescriptorPool descriptor_pool;

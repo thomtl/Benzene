@@ -45,6 +45,23 @@ namespace benzene::vulkan
         vk::SurfaceKHR surface;
         vma::Allocator allocator;
 
+        vk::Format find_supported_format(const std::vector<vk::Format>& candidates, vk::ImageTiling tiling, vk::FormatFeatureFlags features){
+            for(const auto& format : candidates){
+                auto properties = this->gpu.getFormatProperties(format);
+
+                if(tiling == vk::ImageTiling::eLinear && (properties.linearTilingFeatures & features) == features)
+                    return format;
+                else if(tiling == vk::ImageTiling::eOptimal && (properties.optimalTilingFeatures & features) == features)
+                    return format;
+            }
+
+            throw std::runtime_error("vulkan: Couldn't find supported format");
+        }
+
+        vk::Format find_depth_format(){
+            return find_supported_format({vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
+        }
+
         template<typename T>
         void add_debug_tag([[maybe_unused]] T& item, [[maybe_unused]] const char* name){
             if constexpr (enable_validation){

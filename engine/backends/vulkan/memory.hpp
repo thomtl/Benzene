@@ -123,9 +123,42 @@ namespace benzene::vulkan
         vma::Allocation allocation;
     };
 
+    class ImageView {
+        public:
+        ImageView(): instance{nullptr}, view{nullptr} {}
+        ImageView(Instance* instance, Image& image, vk::Format format, vk::ImageAspectFlags aspect): instance{instance} {
+            vk::ImageViewCreateInfo view_info{};
+            view_info.image = image.handle();
+            view_info.format = format;
+            view_info.viewType = vk::ImageViewType::e2D;
+            view_info.subresourceRange.aspectMask = aspect;
+            view_info.subresourceRange.baseMipLevel = 0;
+            view_info.subresourceRange.levelCount = 1;
+            view_info.subresourceRange.baseArrayLayer = 0;
+            view_info.subresourceRange.layerCount = 1;
+
+            view = instance->device.createImageView(view_info);
+        }
+
+        void clean(){
+            //if(!instance || !view)
+            //    return;
+            if(instance && view)
+                instance->device.destroyImageView(view);
+        }
+
+        vk::ImageView& handle(){
+            return view;
+        }
+
+        private:
+        Instance* instance;
+        vk::ImageView view;
+    };
+
     class Texture {
         public:
-        Texture(): instance{nullptr}, image{}, view{nullptr}, sampler{nullptr} {}
+        Texture(): instance{nullptr}, image{}, view{}, sampler{nullptr} {}
         Texture(Instance* instance, const std::string& path): instance{instance} {
             auto* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
             if(!data) {
@@ -214,17 +247,7 @@ namespace benzene::vulkan
 
             transfer.clean();
 
-            vk::ImageViewCreateInfo view_info{};
-            view_info.image = image.handle();
-            view_info.format = vk::Format::eR8G8B8A8Srgb;
-            view_info.viewType = vk::ImageViewType::e2D;
-            view_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-            view_info.subresourceRange.baseMipLevel = 0;
-            view_info.subresourceRange.levelCount = 1;
-            view_info.subresourceRange.baseArrayLayer = 0;
-            view_info.subresourceRange.layerCount = 1;
-
-            view = instance->device.createImageView(view_info);
+            view = ImageView{instance, image, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor};
 
             vk::SamplerCreateInfo sampler_info{};
             sampler_info.magFilter = vk::Filter::eLinear;
@@ -252,12 +275,12 @@ namespace benzene::vulkan
 
         void clean(){
             instance->device.destroySampler(sampler);
-            instance->device.destroyImageView(view);
+            view.clean();
             image.clean();
         }
 
         vk::ImageView& get_view(){
-            return view;
+            return view.handle();
         }
 
         vk::Sampler& get_sampler(){
@@ -267,7 +290,7 @@ namespace benzene::vulkan
         private:
         Instance* instance;
         Image image;
-        vk::ImageView view;
+        ImageView view;
         vk::Sampler sampler;
 
         int width, height, channels;
