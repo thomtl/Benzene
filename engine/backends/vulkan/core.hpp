@@ -88,7 +88,8 @@ namespace benzene::vulkan {
             ImGui::GetIO().MouseWheel += (float)yoffset;
         }
 
-        void set_fps_cap(size_t fps){
+        void set_fps_cap(bool enabled, size_t fps){
+            fps_cap_enabled = enabled;
             this->fps_cap = fps;
         }
 
@@ -111,6 +112,7 @@ namespace benzene::vulkan {
 
         Instance instance; 
         bool framebuffer_resized, is_wireframe;
+        bool fps_cap_enabled;
         size_t current_frame, fps_cap;
         std::vector<Buffer> ubos;
         vk::DescriptorPool descriptor_pool;

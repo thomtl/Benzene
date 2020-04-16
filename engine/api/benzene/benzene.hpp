@@ -47,7 +47,7 @@ namespace benzene
         virtual void frame_update(std::unordered_map<ModelId, Model*>& models) = 0;
         virtual void end_run() = 0;
         virtual void draw_debug_window() = 0;
-        virtual void set_fps_cap(size_t fps) = 0;
+        virtual void set_fps_cap(bool enabled, size_t fps = 60) = 0;
     };
 
     struct FrameData {

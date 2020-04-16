@@ -4,7 +4,7 @@
 int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 {
     benzene::Instance engine{"Benzene-test", 800, 600};
-    //engine.get_backend().set_fps_cap(60);
+    //engine.get_backend().set_fps_cap(true, 60);
 
     std::vector<benzene::Mesh::Vertex> raw_vertices = {
         {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}},
