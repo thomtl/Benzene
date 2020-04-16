@@ -118,15 +118,20 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     dynamic_state.dynamicStateCount = dynamic_states.size();
     dynamic_state.pDynamicStates = dynamic_states.data();
 
-    vk::DescriptorSetLayoutBinding ubo_layout_binding{};
-    ubo_layout_binding.binding = 0;
-    ubo_layout_binding.descriptorType = vk::DescriptorType::eUniformBuffer;
-    ubo_layout_binding.descriptorCount = 1;
-    ubo_layout_binding.stageFlags = vk::ShaderStageFlagBits::eVertex;
+    std::array<vk::DescriptorSetLayoutBinding, 2> ubo_layout_bindings = {};
+    ubo_layout_bindings[0].binding = 0;
+    ubo_layout_bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+    ubo_layout_bindings[0].descriptorCount = 1;
+    ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+
+    ubo_layout_bindings[1].binding = 1;
+    ubo_layout_bindings[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+    ubo_layout_bindings[1].descriptorCount = 1;
+    ubo_layout_bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
 
     vk::DescriptorSetLayoutCreateInfo layout_info{};
-    layout_info.bindingCount = 1;
-    layout_info.pBindings = &ubo_layout_binding;
+    layout_info.bindingCount = ubo_layout_bindings.size();
+    layout_info.pBindings = ubo_layout_bindings.data();
     
     descriptor_set_layout = instance->device.createDescriptorSetLayout(layout_info);
 

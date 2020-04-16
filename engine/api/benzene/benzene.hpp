@@ -22,6 +22,7 @@ namespace benzene
     struct Mesh {
         struct Vertex {
             glm::vec3 pos, colour;
+            glm::vec2 tex_coord;
         };
 
         std::vector<Vertex> vertices;

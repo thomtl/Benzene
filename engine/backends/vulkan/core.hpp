@@ -115,6 +115,9 @@ namespace benzene::vulkan {
         bool fps_cap_enabled;
         size_t current_frame, fps_cap;
         std::vector<Buffer> ubos;
+
+        Texture texture;
+
         vk::DescriptorPool descriptor_pool;
         std::vector<vk::DescriptorSet> descriptor_sets;
         std::vector<vk::Semaphore> image_available, render_finished;

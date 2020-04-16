@@ -10,6 +10,7 @@ namespace benzene::vulkan
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 colour;
+        glm::vec2 tex_coord;
 
         static vk::VertexInputBindingDescription get_binding_description(){
             vk::VertexInputBindingDescription info{};
@@ -19,8 +20,8 @@ namespace benzene::vulkan
             return info;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 2> get_attribute_descriptions(){
-            std::array<vk::VertexInputAttributeDescription, 2> desc{};
+        static std::array<vk::VertexInputAttributeDescription, 3> get_attribute_descriptions(){
+            std::array<vk::VertexInputAttributeDescription, 3> desc{};
             desc[0].binding = 0;
             desc[0].location = 0;
             desc[0].format = vk::Format::eR32G32B32Sfloat;
@@ -30,6 +31,11 @@ namespace benzene::vulkan
             desc[1].location = 1;
             desc[1].format = vk::Format::eR32G32B32Sfloat;
             desc[1].offset = offsetof(Vertex, colour);
+
+            desc[2].binding = 0;
+            desc[2].location = 2;
+            desc[2].format = vk::Format::eR32G32Sfloat;
+            desc[2].offset = offsetof(Vertex, tex_coord);
 
             return desc;
         }

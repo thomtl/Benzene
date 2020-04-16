@@ -109,6 +109,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
         shader.clean();
 
     this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass(), this->swapchain.get_images().size()};
+    this->texture = Texture{&instance, "../engine/resources/sample_texture.jpg"};
 
     this->create_renderer();
 
@@ -135,6 +136,8 @@ Backend::~Backend(){
 
     this->imgui_renderer.clean();
     this->cleanup_renderer();
+
+    this->texture.clean();
 
 
     this->pipeline.clean();
@@ -175,6 +178,7 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
             auto& item = internal_vertices.emplace_back();
             item.pos = vertex.pos;
             item.colour = vertex.colour;
+            item.tex_coord = vertex.tex_coord;
         }
 
         item.vertices = VertexBuffer{&this->instance, internal_vertices, vk::BufferUsageFlagBits::eVertexBuffer};
@@ -340,6 +344,8 @@ void Backend::init_logical_device(){
     vk::PhysicalDeviceFeatures device_features{};
     if constexpr(enable_wireframe_outline)
         device_features.fillModeNonSolid = true;
+
+    device_features.samplerAnisotropy = true;
     
     vk::DeviceCreateInfo create_info{};
     create_info.pQueueCreateInfos = queue_creation_info.data();
@@ -421,6 +427,9 @@ void Backend::init_physical_device(){
             if constexpr(enable_wireframe_outline)
                 if(!dev.getFeatures().fillModeNonSolid) // When outline is enabled we need fillModeNonSolid
                     return false;
+                
+            if(!dev.getFeatures().samplerAnisotropy)
+                return false;
 
             return true;
         };
@@ -506,13 +515,16 @@ void Backend::create_renderer(){
     for(size_t i = 0; i < this->swapchain.get_images().size(); i++)
         this->ubos.emplace_back(&instance, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     
-    vk::DescriptorPoolSize pool_size{};
-    pool_size.type = vk::DescriptorType::eUniformBuffer;
-    pool_size.descriptorCount = swapchain.get_images().size();
+    std::array<vk::DescriptorPoolSize, 2> pool_sizes{};
+    pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
+    pool_sizes[0].descriptorCount = swapchain.get_images().size();
+
+    pool_sizes[1].type = vk::DescriptorType::eCombinedImageSampler;
+    pool_sizes[1].descriptorCount = swapchain.get_images().size();
     
     vk::DescriptorPoolCreateInfo pool_info{};
-    pool_info.poolSizeCount = 1;
-    pool_info.pPoolSizes = &pool_size;
+    pool_info.poolSizeCount = pool_sizes.size();
+    pool_info.pPoolSizes = pool_sizes.data();
     pool_info.maxSets = swapchain.get_images().size();
 
     descriptor_pool = instance.device.createDescriptorPool(pool_info);
@@ -533,17 +545,27 @@ void Backend::create_renderer(){
         buf_info.offset = 0;
         buf_info.range = sizeof(UniformBufferObject);
 
-        vk::WriteDescriptorSet descriptor_write{};
-        descriptor_write.dstSet = descriptor_sets[i];
-        descriptor_write.dstBinding = 0;
-        descriptor_write.dstArrayElement = 0;
-        descriptor_write.descriptorType = vk::DescriptorType::eUniformBuffer;
-        descriptor_write.descriptorCount = 1;
-        descriptor_write.pBufferInfo = &buf_info;
-        descriptor_write.pImageInfo = nullptr;
-        descriptor_write.pTexelBufferView = nullptr;
+        vk::DescriptorImageInfo image_info{};
+        image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        image_info.imageView = texture.get_view();
+        image_info.sampler = texture.get_sampler();
 
-        instance.device.updateDescriptorSets({descriptor_write}, {});
+        std::array<vk::WriteDescriptorSet, 2> descriptor_writes = {};
+        descriptor_writes[0].dstSet = descriptor_sets[i];
+        descriptor_writes[0].dstBinding = 0;
+        descriptor_writes[0].dstArrayElement = 0;
+        descriptor_writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+        descriptor_writes[0].descriptorCount = 1;
+        descriptor_writes[0].pBufferInfo = &buf_info;
+
+        descriptor_writes[1].dstSet = descriptor_sets[i];
+        descriptor_writes[1].dstBinding = 1;
+        descriptor_writes[1].dstArrayElement = 0;
+        descriptor_writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        descriptor_writes[1].descriptorCount = 1;
+        descriptor_writes[1].pImageInfo = &image_info;
+
+        instance.device.updateDescriptorSets(descriptor_writes, {});
     }
 
     this->framebuffers.clear();
