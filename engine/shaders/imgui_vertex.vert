@@ -10,15 +10,13 @@ layout (push_constant) uniform PushConstants {
     vec2 translate;
 } pushConstants;
 
-layout (location = 0) out vec2 outUV;
-layout (location = 1) out vec4 outColour;
-
-out gl_PerVertex {
-    vec4 gl_Position;
-};
+layout (location = 0) out VS_OUT {
+    vec4 colour;
+    vec2 uv;
+} vertex_out;
 
 void main(){
-    outUV = inUV;
-    outColour = inColour;
+    vertex_out.colour = inColour;
+    vertex_out.uv = inUV;
     gl_Position = vec4(inPos * pushConstants.scale + pushConstants.translate, 0.0, 1.0);
 }
