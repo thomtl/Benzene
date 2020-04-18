@@ -239,7 +239,7 @@ namespace benzene::vulkan
             viewport_create_info.pScissors = nullptr; // Dynamic and thus ignored
 
             vk::PipelineMultisampleStateCreateInfo multisampling{};
-            multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
+            multisampling.rasterizationSamples = instance->find_max_msaa_samples();
 
             vk::DynamicState dynamic_states[] = {
                 vk::DynamicState::eViewport,

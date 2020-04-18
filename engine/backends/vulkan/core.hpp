@@ -118,8 +118,8 @@ namespace benzene::vulkan {
         size_t current_frame, fps_cap;
         std::vector<Buffer> ubos;
 
-        Image depthImage;
-        ImageView depthImageView;
+        Image depth_image, colour_image;
+        ImageView depth_image_view, colour_image_view;
         
         Texture texture;
 

@@ -479,8 +479,11 @@ void Backend::init_physical_device(){
 }
 
 void Backend::cleanup_renderer(){
-    this->depthImageView.clean();
-    this->depthImage.clean();
+    this->depth_image_view.clean();
+    this->depth_image.clean();
+
+    this->colour_image_view.clean();
+    this->colour_image.clean();
 
     for(auto& ubo : ubos)
         ubo.clean();
@@ -570,14 +573,18 @@ void Backend::create_renderer(){
         instance.device.updateDescriptorSets(descriptor_writes, {});
     }
 
-    this->depthImage = Image{&instance, swapchain.get_extent().width, swapchain.get_extent().height, instance.find_depth_format(), vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal};
-    this->depthImageView = ImageView{&instance, this->depthImage, instance.find_depth_format(), vk::ImageAspectFlagBits::eDepth};
+    this->depth_image = Image{&instance, swapchain.get_extent().width, swapchain.get_extent().height, instance.find_depth_format(), instance.find_max_msaa_samples(), vk::ImageUsageFlagBits::eDepthStencilAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal};
+    this->depth_image_view = ImageView{&instance, this->depth_image, instance.find_depth_format(), vk::ImageAspectFlagBits::eDepth};
+
+    this->colour_image = Image{&instance, swapchain.get_extent().width, swapchain.get_extent().height, swapchain.get_format(), instance.find_max_msaa_samples(), vk::ImageUsageFlagBits::eTransientAttachment | vk::ImageUsageFlagBits::eColorAttachment, vk::MemoryPropertyFlagBits::eDeviceLocal};
+    this->colour_image_view = ImageView{&instance, this->colour_image, swapchain.get_format(), vk::ImageAspectFlagBits::eColor};
 
     this->framebuffers.clear();
     for(size_t i = 0; i < this->swapchain.get_image_views().size(); i++){
-        std::array<vk::ImageView, 2> attachments = {
-            this->swapchain.get_image_views()[i],
-            depthImageView.handle()
+        std::array<vk::ImageView, 3> attachments = {
+            colour_image_view.handle(),
+            depth_image_view.handle(),
+            this->swapchain.get_image_views()[i]
         };
         
         vk::FramebufferCreateInfo framebuffer_create_info{};

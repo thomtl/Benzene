@@ -62,6 +62,27 @@ namespace benzene::vulkan
             return find_supported_format({vk::Format::eD32Sfloat, vk::Format::eD32SfloatS8Uint, vk::Format::eD24UnormS8Uint}, vk::ImageTiling::eOptimal, vk::FormatFeatureFlagBits::eDepthStencilAttachment);
         }
 
+        vk::SampleCountFlagBits find_max_msaa_samples(){
+            auto limits = gpu.getProperties().limits;
+            auto samples = limits.framebufferColorSampleCounts & limits.framebufferDepthSampleCounts;
+
+            #define CHECK(sample) \
+                if(samples & (sample)) { \
+                    return (sample); \
+                }
+
+            CHECK(vk::SampleCountFlagBits::e64);
+            CHECK(vk::SampleCountFlagBits::e32);
+            CHECK(vk::SampleCountFlagBits::e16);
+            CHECK(vk::SampleCountFlagBits::e8);
+            CHECK(vk::SampleCountFlagBits::e4);
+            CHECK(vk::SampleCountFlagBits::e2);
+
+            #undef CHECK
+
+            return vk::SampleCountFlagBits::e1;
+        }
+
         template<typename T>
         void add_debug_tag([[maybe_unused]] T& item, [[maybe_unused]] const char* name){
             if constexpr (enable_validation){

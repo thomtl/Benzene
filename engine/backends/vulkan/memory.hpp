@@ -76,7 +76,7 @@ namespace benzene::vulkan
     class Image {
         public:
         Image(): instance{nullptr}, image{nullptr}, allocation{nullptr} {}
-        Image(Instance* instance, size_t width, size_t height, vk::Format format, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties): instance{instance} {
+        Image(Instance* instance, size_t width, size_t height, vk::Format format, vk::SampleCountFlagBits sample_count, vk::ImageUsageFlags usage, vk::MemoryPropertyFlags properties): instance{instance} {
             vk::ImageCreateInfo image_info{};
             image_info.imageType = vk::ImageType::e2D;
             image_info.extent.width = width;
@@ -88,7 +88,7 @@ namespace benzene::vulkan
             image_info.tiling = vk::ImageTiling::eOptimal;
             image_info.usage = usage;
             image_info.sharingMode = vk::SharingMode::eExclusive;
-            image_info.samples = vk::SampleCountFlagBits::e1;
+            image_info.samples = sample_count;
             
             vma::AllocationCreateInfo alloc_info{};
             alloc_info.usage = vma::MemoryUsage::eUnknown;
@@ -175,7 +175,7 @@ namespace benzene::vulkan
 
             stbi_image_free(data);
 
-            image = Image{instance, (size_t)width, (size_t)height, vk::Format::eR8G8B8A8Srgb, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
+            image = Image{instance, (size_t)width, (size_t)height, vk::Format::eR8G8B8A8Srgb, vk::SampleCountFlagBits::e1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
             auto transition_image_layout = [this]([[maybe_unused]] vk::Format format, vk::ImageLayout old_layout, vk::ImageLayout new_layout){
                 CommandBuffer cmd{this->instance, &this->instance->graphics};

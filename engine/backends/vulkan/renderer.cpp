@@ -8,17 +8,17 @@ RenderPass::RenderPass(): instance{nullptr},renderpass{nullptr}, swapchain{nullp
 RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{instance}, swapchain{swapchain} {
     vk::AttachmentDescription colour_attachment{};
     colour_attachment.format = swapchain->get_format();
-    colour_attachment.samples = vk::SampleCountFlagBits::e1;
+    colour_attachment.samples = instance->find_max_msaa_samples();
     colour_attachment.loadOp = vk::AttachmentLoadOp::eClear;
     colour_attachment.storeOp = vk::AttachmentStoreOp::eStore;
     colour_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
     colour_attachment.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
     colour_attachment.initialLayout = vk::ImageLayout::eUndefined;
-    colour_attachment.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+    colour_attachment.finalLayout = vk::ImageLayout::eColorAttachmentOptimal;
 
     vk::AttachmentDescription depth_attachment{};
     depth_attachment.format = instance->find_depth_format();
-    depth_attachment.samples = vk::SampleCountFlagBits::e1;
+    depth_attachment.samples = instance->find_max_msaa_samples();
     depth_attachment.loadOp = vk::AttachmentLoadOp::eClear;
     depth_attachment.storeOp = vk::AttachmentStoreOp::eDontCare;
     depth_attachment.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
@@ -26,7 +26,17 @@ RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{insta
     depth_attachment.initialLayout = vk::ImageLayout::eUndefined;
     depth_attachment.finalLayout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
 
-    std::array<vk::AttachmentDescription, 2> attachments = {colour_attachment, depth_attachment};
+    vk::AttachmentDescription colour_attachment_resolve{};
+    colour_attachment_resolve.format = swapchain->get_format();
+    colour_attachment_resolve.samples = vk::SampleCountFlagBits::e1;
+    colour_attachment_resolve.loadOp = vk::AttachmentLoadOp::eDontCare;
+    colour_attachment_resolve.storeOp = vk::AttachmentStoreOp::eStore;
+    colour_attachment_resolve.stencilLoadOp = vk::AttachmentLoadOp::eDontCare;
+    colour_attachment_resolve.stencilStoreOp = vk::AttachmentStoreOp::eDontCare;
+    colour_attachment_resolve.initialLayout = vk::ImageLayout::eUndefined;
+    colour_attachment_resolve.finalLayout = vk::ImageLayout::ePresentSrcKHR;
+
+    std::array<vk::AttachmentDescription, 3> attachments = {colour_attachment, depth_attachment, colour_attachment_resolve};
 
     vk::AttachmentReference colour_attachment_ref{};
     colour_attachment_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
@@ -36,11 +46,16 @@ RenderPass::RenderPass(Instance* instance, SwapChain* swapchain): instance{insta
     depth_attachment_ref.layout = vk::ImageLayout::eDepthStencilAttachmentOptimal;
     depth_attachment_ref.attachment = 1;
 
+    vk::AttachmentReference colour_attachment_resolve_ref{};
+    colour_attachment_resolve_ref.layout = vk::ImageLayout::eColorAttachmentOptimal;
+    colour_attachment_resolve_ref.attachment = 2;
+
     vk::SubpassDescription subpass{};
     subpass.pipelineBindPoint = vk::PipelineBindPoint::eGraphics;
     subpass.colorAttachmentCount = 1;
     subpass.pColorAttachments = &colour_attachment_ref;
     subpass.pDepthStencilAttachment = &depth_attachment_ref;
+    subpass.pResolveAttachments = &colour_attachment_resolve_ref;
 
     vk::SubpassDependency dependency{};
     dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -105,8 +120,8 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     rasterizer.depthBiasEnable = false;
 
     vk::PipelineMultisampleStateCreateInfo multisampling{};
+    multisampling.rasterizationSamples = instance->find_max_msaa_samples();
     multisampling.sampleShadingEnable = false;
-    multisampling.rasterizationSamples = vk::SampleCountFlagBits::e1;
     multisampling.minSampleShading = 1.0f;
     multisampling.alphaToCoverageEnable = false;
     multisampling.alphaToOneEnable = false;
