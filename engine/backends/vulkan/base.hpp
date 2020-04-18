@@ -25,8 +25,6 @@
 #include "../../core/format.hpp"
 #include "../../core/utils.hpp"
 
-#include "extra_api.hpp"
-
 namespace benzene::vulkan
 {
     constexpr bool enable_validation = true;
@@ -90,7 +88,7 @@ namespace benzene::vulkan
                 name_info.objectType = T::objectType;
                 name_info.objectHandle = (uint64_t)(typename T::CType)item;
                 name_info.pObjectName = name;
-                extra_api::SetDebugUtilsObjectNameEXT(device, &name_info);
+                device.setDebugUtilsObjectNameEXT(name_info);
             }            
         }
 
@@ -160,13 +158,13 @@ namespace benzene::vulkan
                 label_info.color[2] = colour.z;
                 label_info.color[3] = 1.0f;
 
-                extra_api::CmdBeginDebugUtilsLabelEXT(instance->device, buffer, &label_info);
+                buffer.beginDebugUtilsLabelEXT(label_info);
             }
         }
 
         void stop(){
             if constexpr (enable_validation) {
-                extra_api::CmdEndDebugUtilsLabelEXT(instance->device, buffer);
+                buffer.endDebugUtilsLabelEXT();
             }
         }
 

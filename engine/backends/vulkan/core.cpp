@@ -56,6 +56,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
 
     if(vk::createInstance(&create_info, nullptr, &this->instance.instance) != vk::Result::eSuccess)
         throw std::runtime_error("Couldn't make instance");
+
+    extra_api::init_instance_level(&instance);
             
     print("vulkan: Initialized instance with {} extension(s) and {} validation layer(s)\n", create_info.enabledExtensionCount, create_info.enabledLayerCount);
 
@@ -79,6 +81,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     }
 
     this->init_logical_device();
+
+    extra_api::init_device_level(&instance);
 
     vma::AllocatorCreateInfo allocator_create_info{};
     allocator_create_info.device = this->instance.device;
@@ -155,7 +159,7 @@ Backend::~Backend(){
     
     this->instance.device.destroy();
     if constexpr (enable_validation)
-        extra_api::DestroyDebugUtilsMessengerEXT(this->instance.instance, debug_messenger, nullptr);
+        this->instance.instance.destroyDebugUtilsMessengerEXT(debug_messenger);
     this->instance.instance.destroySurfaceKHR(this->instance.surface);
     this->instance.instance.destroy();
 }
@@ -308,7 +312,7 @@ vk::DebugUtilsMessengerCreateInfoEXT Backend::make_debug_messenger_create_info()
 void Backend::init_debug_messenger(){
     auto create_info = this->make_debug_messenger_create_info();
 
-    if(extra_api::CreateDebugUtilsMessengerEXT(instance.instance, &create_info, nullptr, &debug_messenger) != vk::Result::eSuccess)
+    this->debug_messenger = this->instance.instance.createDebugUtilsMessengerEXT(create_info);
         throw std::runtime_error("Failed to create debug_messenger");
 }
 
