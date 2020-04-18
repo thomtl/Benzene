@@ -25,11 +25,13 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     model.mesh = mesh;
     model.pos = {0, 0, 0.512};
     model.scale = {1, 1, 0};
+    model.texture = benzene::Texture::load_from_file("../engine/resources/sample_texture.jpg");
 
     benzene::Model model2{};
     model2.mesh = mesh;
     model2.pos = {0, 0, 0};
     model2.scale = {1, 1, 0};
+    model2.texture = benzene::Texture::load_from_file("../engine/resources/wall.jpg");
 
     engine.add_model(&model);
     engine.add_model(&model2);

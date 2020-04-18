@@ -10,7 +10,7 @@ namespace benzene::vulkan
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 colour;
-        glm::vec2 tex_coord;
+        glm::vec2 uv;
 
         static vk::VertexInputBindingDescription get_binding_description(){
             vk::VertexInputBindingDescription info{};
@@ -35,7 +35,7 @@ namespace benzene::vulkan
             desc[2].binding = 0;
             desc[2].location = 2;
             desc[2].format = vk::Format::eR32G32Sfloat;
-            desc[2].offset = offsetof(Vertex, tex_coord);
+            desc[2].offset = offsetof(Vertex, uv);
 
             return desc;
         }
@@ -136,8 +136,8 @@ namespace benzene::vulkan
             return pipeline;
         }
 
-        vk::DescriptorSetLayout& get_descriptor_set_layout(){
-            return descriptor_set_layout;
+        vk::DescriptorSetLayout& get_descriptor_set_layout(size_t set){
+            return descriptor_set_layouts[set];
         }
 
         vk::PipelineLayout& get_layout(){
@@ -152,7 +152,7 @@ namespace benzene::vulkan
 
         RenderPass renderpass;
         
-        vk::DescriptorSetLayout descriptor_set_layout;
+        std::array<vk::DescriptorSetLayout, 2> descriptor_set_layouts;
         vk::PipelineLayout layout;
         vk::Pipeline pipeline;
     };

@@ -4,12 +4,15 @@
 #include <GLFW/glfw3.h>
 
 #include "../libs/imgui/imgui.h"
+#include "../libs/stb/stb_image.h"
 
 #include <functional>
 #include <memory>
 #include <string_view>
 #include <unordered_map>
 #include <vector>
+#include <cstddef>
+#include <cstdint>
 
 #define GLM_FORCE_RADIANS
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
@@ -22,11 +25,27 @@ namespace benzene
     struct Mesh {
         struct Vertex {
             glm::vec3 pos, colour;
-            glm::vec2 tex_coord;
+            glm::vec2 uv;
         };
 
         std::vector<Vertex> vertices;
         std::vector<uint16_t> indices;
+    };
+
+    struct Texture {
+        static Texture load_from_file(const std::string& filename);
+
+        const std::vector<uint8_t>& bytes(){
+            return data;
+        }
+
+        std::pair<int, int> dimensions(){
+            return {width, height};
+        }
+
+        private:
+        std::vector<uint8_t> data;
+        int width, height, channels;
     };
 
     struct Model {
@@ -34,6 +53,7 @@ namespace benzene
         glm::vec3 rotation;
         glm::vec3 scale;
         Mesh mesh;
+        Texture texture;
     };
 
     using ModelId = uint64_t;

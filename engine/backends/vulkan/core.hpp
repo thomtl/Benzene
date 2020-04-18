@@ -27,8 +27,9 @@ struct format::formatter<benzene::vulkan::spec_version> {
 };
 
 namespace benzene::vulkan {
-    constexpr std::array<const char*, 1> required_device_extensions = {
-        VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    constexpr std::array<const char*, 2> required_device_extensions = {
+        VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+        VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME
     };
 
     constexpr std::array<const char*, 1> validation_layers = {
@@ -39,12 +40,16 @@ namespace benzene::vulkan {
         void clean(){
             indices.clean();
             vertices.clean();
+
+            texture.clean();
         }
         glm::vec3 pos;
         
         Model* model;
         VertexBuffer vertices;
         IndexBuffer indices;
+
+        vulkan::Texture texture;
 
         RenderPipeline* pipeline;
         #ifdef ENABLE_WIREFRAME_OUTLINE
@@ -120,8 +125,6 @@ namespace benzene::vulkan {
 
         Image depth_image, colour_image;
         ImageView depth_image_view, colour_image_view;
-        
-        Texture texture;
 
         vk::DescriptorPool descriptor_pool;
         std::vector<vk::DescriptorSet> descriptor_sets;

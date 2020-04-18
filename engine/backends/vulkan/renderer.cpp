@@ -158,22 +158,35 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     dynamic_state.dynamicStateCount = dynamic_states.size();
     dynamic_state.pDynamicStates = dynamic_states.data();
 
-    std::array<vk::DescriptorSetLayoutBinding, 2> ubo_layout_bindings = {};
-    ubo_layout_bindings[0].binding = 0;
-    ubo_layout_bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
-    ubo_layout_bindings[0].descriptorCount = 1;
-    ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+    { // Set 0
+        std::array<vk::DescriptorSetLayoutBinding, 1> ubo_layout_bindings = {};
+        ubo_layout_bindings[0].binding = 0;
+        ubo_layout_bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
+        ubo_layout_bindings[0].descriptorCount = 1;
+        ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
 
-    ubo_layout_bindings[1].binding = 1;
-    ubo_layout_bindings[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-    ubo_layout_bindings[1].descriptorCount = 1;
-    ubo_layout_bindings[1].stageFlags = vk::ShaderStageFlagBits::eFragment;
-
-    vk::DescriptorSetLayoutCreateInfo layout_info{};
-    layout_info.bindingCount = ubo_layout_bindings.size();
-    layout_info.pBindings = ubo_layout_bindings.data();
+        vk::DescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.bindingCount = ubo_layout_bindings.size();
+        layout_info.pBindings = ubo_layout_bindings.data();
     
-    descriptor_set_layout = instance->device.createDescriptorSetLayout(layout_info);
+        descriptor_set_layouts[0] = instance->device.createDescriptorSetLayout(layout_info);
+    }
+
+    { // Set 1
+        std::array<vk::DescriptorSetLayoutBinding, 1> ubo_layout_bindings = {};
+        ubo_layout_bindings[0].binding = 0;
+        ubo_layout_bindings[0].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        ubo_layout_bindings[0].descriptorCount = 1;
+        ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eFragment;
+
+        vk::DescriptorSetLayoutCreateInfo layout_info{};
+        layout_info.flags = vk::DescriptorSetLayoutCreateFlagBits::ePushDescriptorKHR;
+        layout_info.bindingCount = ubo_layout_bindings.size();
+        layout_info.pBindings = ubo_layout_bindings.data();
+    
+        descriptor_set_layouts[1] = instance->device.createDescriptorSetLayout(layout_info);
+    }
+    
 
     vk::PushConstantRange push_constant_range{};
     push_constant_range.stageFlags = vk::ShaderStageFlagBits::eVertex;
@@ -181,8 +194,8 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
     push_constant_range.offset = 0;
 
     vk::PipelineLayoutCreateInfo layout_create_info{};
-    layout_create_info.setLayoutCount = 1;
-    layout_create_info.pSetLayouts = &descriptor_set_layout;
+    layout_create_info.setLayoutCount = descriptor_set_layouts.size();
+    layout_create_info.pSetLayouts = descriptor_set_layouts.data();
     layout_create_info.pushConstantRangeCount = 1;
     layout_create_info.pPushConstantRanges = &push_constant_range;
 
@@ -215,7 +228,8 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
 }
 
 void RenderPipeline::clean(){
-    instance->device.destroyDescriptorSetLayout(this->descriptor_set_layout);
+    for(auto& set : descriptor_set_layouts)
+        instance->device.destroyDescriptorSetLayout(set);
     instance->device.destroyPipeline(this->pipeline);
     instance->device.destroyPipelineLayout(this->layout);
     renderpass.clean();

@@ -113,7 +113,6 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
         shader.clean();
 
     this->imgui_renderer = Imgui{&instance, &swapchain, &pipeline.get_render_pass(), this->swapchain.get_images().size()};
-    this->texture = Texture{&instance, "../engine/resources/sample_texture.jpg"};
 
     this->create_renderer();
 
@@ -140,8 +139,6 @@ Backend::~Backend(){
 
     this->imgui_renderer.clean();
     this->cleanup_renderer();
-
-    this->texture.clean();
 
     this->pipeline.clean();
     if constexpr (enable_wireframe_outline)
@@ -181,9 +178,12 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
             auto& item = internal_vertices.emplace_back();
             item.pos = vertex.pos;
             item.colour = vertex.colour;
-            item.tex_coord = vertex.tex_coord;
+            item.uv = vertex.uv;
         }
 
+        if(const auto [x, y] = model->texture.dimensions(); x == 0 || y == 0)
+            throw std::runtime_error("vulkan/core: Can't load models with no texture, // TODO: Implement that with specialization constants to disable the textures in shader or something");
+        item.texture = vulkan::Texture(&this->instance, model->texture);
         item.vertices = VertexBuffer{&this->instance, internal_vertices, vk::BufferUsageFlagBits::eVertexBuffer};
         item.indices = IndexBuffer{&this->instance, model->mesh.indices, vk::BufferUsageFlagBits::eIndexBuffer};
         item.pipeline = &pipeline; // TODO: Have the user control this based on shaders
@@ -313,7 +313,6 @@ void Backend::init_debug_messenger(){
     auto create_info = this->make_debug_messenger_create_info();
 
     this->debug_messenger = this->instance.instance.createDebugUtilsMessengerEXT(create_info);
-        throw std::runtime_error("Failed to create debug_messenger");
 }
 
 void Backend::init_logical_device(){
@@ -524,12 +523,9 @@ void Backend::create_renderer(){
     for(size_t i = 0; i < this->swapchain.get_images().size(); i++)
         this->ubos.emplace_back(&instance, sizeof(UniformBufferObject), vk::BufferUsageFlagBits::eUniformBuffer, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent);
     
-    std::array<vk::DescriptorPoolSize, 2> pool_sizes{};
+    std::array<vk::DescriptorPoolSize, 1> pool_sizes{};
     pool_sizes[0].type = vk::DescriptorType::eUniformBuffer;
     pool_sizes[0].descriptorCount = swapchain.get_images().size();
-
-    pool_sizes[1].type = vk::DescriptorType::eCombinedImageSampler;
-    pool_sizes[1].descriptorCount = swapchain.get_images().size();
     
     vk::DescriptorPoolCreateInfo pool_info{};
     pool_info.poolSizeCount = pool_sizes.size();
@@ -539,7 +535,7 @@ void Backend::create_renderer(){
     descriptor_pool = instance.device.createDescriptorPool(pool_info);
 
     std::vector<vk::DescriptorSetLayout> layouts{};
-    layouts.resize(swapchain.get_images().size(), this->pipeline.get_descriptor_set_layout());
+    layouts.resize(swapchain.get_images().size(), this->pipeline.get_descriptor_set_layout(0));
 
     vk::DescriptorSetAllocateInfo set_alloc_info{};
     set_alloc_info.descriptorPool = descriptor_pool;
@@ -553,26 +549,14 @@ void Backend::create_renderer(){
         buf_info.buffer = ubos[i].handle();
         buf_info.offset = 0;
         buf_info.range = sizeof(UniformBufferObject);
-
-        vk::DescriptorImageInfo image_info{};
-        image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-        image_info.imageView = texture.get_view();
-        image_info.sampler = texture.get_sampler();
-
-        std::array<vk::WriteDescriptorSet, 2> descriptor_writes = {};
+        
+        std::array<vk::WriteDescriptorSet, 1> descriptor_writes = {};
         descriptor_writes[0].dstSet = descriptor_sets[i];
         descriptor_writes[0].dstBinding = 0;
         descriptor_writes[0].dstArrayElement = 0;
         descriptor_writes[0].descriptorType = vk::DescriptorType::eUniformBuffer;
         descriptor_writes[0].descriptorCount = 1;
         descriptor_writes[0].pBufferInfo = &buf_info;
-
-        descriptor_writes[1].dstSet = descriptor_sets[i];
-        descriptor_writes[1].dstBinding = 1;
-        descriptor_writes[1].dstArrayElement = 0;
-        descriptor_writes[1].descriptorType = vk::DescriptorType::eCombinedImageSampler;
-        descriptor_writes[1].descriptorCount = 1;
-        descriptor_writes[1].pImageInfo = &image_info;
 
         instance.device.updateDescriptorSets(descriptor_writes, {});
     }
@@ -641,7 +625,7 @@ void Backend::build_command_buffer(size_t i){
     scissor.offset = vk::Offset2D{0, 0};
     scissor.extent = this->swapchain.get_extent();
 
-    auto draw_model = [this, &cmd](BackendModel& model){
+    auto draw_model = [this, &cmd, i]([[maybe_unused]] uint64_t id, BackendModel& model, vk::PipelineLayout& layout){
         PushConstants pc{};
         pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
@@ -649,7 +633,24 @@ void Backend::build_command_buffer(size_t i){
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
         pc.model = glm::scale(pc.model, model.model->scale);
 
-        cmd.pushConstants<PushConstants>(this->pipeline.get_layout(), vk::ShaderStageFlagBits::eVertex, 0, {pc});
+        cmd.pushConstants<PushConstants>(layout, vk::ShaderStageFlagBits::eVertex, 0, {pc});
+
+        vk::DescriptorImageInfo image_info{};
+        image_info.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
+        image_info.imageView = model.texture.get_view();
+        image_info.sampler = model.texture.get_sampler();
+
+        std::array<vk::WriteDescriptorSet, 1> descriptor_writes = {};
+
+        descriptor_writes[0].dstSet = descriptor_sets[i];
+        descriptor_writes[0].dstBinding = 0;
+        descriptor_writes[0].dstArrayElement = 0;
+        descriptor_writes[0].descriptorType = vk::DescriptorType::eCombinedImageSampler;
+        descriptor_writes[0].descriptorCount = 1;
+        descriptor_writes[0].pImageInfo = &image_info;
+
+        cmd.pushDescriptorSetKHR(vk::PipelineBindPoint::eGraphics, layout, 1, descriptor_writes);
+
         cmd.drawIndexed(model.indices.size(), 1, 0, 0, 0);
     };
 
@@ -671,7 +672,10 @@ void Backend::build_command_buffer(size_t i){
             cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
             cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
 
-            draw_model(model);
+            if constexpr (enable_wireframe_outline)
+                draw_model(id, model, model.wireframe_pipeline->get_layout());
+            else
+                draw_model(id, model, model.pipeline->get_layout());
         }
     }
 

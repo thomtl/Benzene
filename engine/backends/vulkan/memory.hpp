@@ -159,21 +159,14 @@ namespace benzene::vulkan
     class Texture {
         public:
         Texture(): instance{nullptr}, image{}, view{}, sampler{nullptr} {}
-        Texture(Instance* instance, const std::string& path): instance{instance} {
-            auto* data = stbi_load(path.c_str(), &width, &height, &channels, STBI_rgb_alpha);
-            if(!data) {
-                print("vulkan/texture: Failed to load texture data, error: {:s}\n", stbi_failure_reason());
-                throw std::runtime_error("vulkan/texture: Failed to load image data from file");
-            }
-
+        Texture(Instance* instance, benzene::Texture& tex): instance{instance} {
+            std::tie(width, height) = tex.dimensions();
             size_t size = width * height * 4;
             Buffer transfer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
             transfer.map();
-            memcpy(transfer.data(), data, size);
+            memcpy(transfer.data(), tex.bytes().data(), size);
             transfer.unmap();
-
-            stbi_image_free(data);
 
             image = Image{instance, (size_t)width, (size_t)height, vk::Format::eR8G8B8A8Srgb, vk::SampleCountFlagBits::e1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
@@ -252,9 +245,9 @@ namespace benzene::vulkan
             vk::SamplerCreateInfo sampler_info{};
             sampler_info.magFilter = vk::Filter::eLinear;
             sampler_info.minFilter = vk::Filter::eLinear;
-            sampler_info.addressModeU = vk::SamplerAddressMode::eRepeat;
-            sampler_info.addressModeV = vk::SamplerAddressMode::eRepeat;
-            sampler_info.addressModeW = vk::SamplerAddressMode::eRepeat;
+            sampler_info.addressModeU = vk::SamplerAddressMode::eClampToBorder;
+            sampler_info.addressModeV = vk::SamplerAddressMode::eClampToBorder;
+            sampler_info.addressModeW = vk::SamplerAddressMode::eClampToBorder;
             
             sampler_info.anisotropyEnable = true;
             sampler_info.maxAnisotropy = 16;

@@ -4,6 +4,30 @@
 #include "../backends/vulkan/core.hpp"
 #include "format.hpp"
 
+benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
+    int width, height, channels;
+    stbi_set_flip_vertically_on_load(true);
+
+    auto* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    if(!data) {
+        print("vulkan/texture: Failed to load texture data, error: {:s}\n", stbi_failure_reason());
+        throw std::runtime_error("vulkan/texture: Failed to load image data from file");
+    }
+
+    Texture tex{};
+    tex.width = width;
+    tex.height = height;
+    tex.channels = channels;
+
+    size_t size = width * height * 4;
+    tex.data.resize(size);
+    memcpy(tex.data.data(), data, size);
+
+    stbi_image_free(data);
+
+    return tex;
+}
+
 benzene::Instance::Instance(const char* name, size_t width, size_t height): width{width}, height{height} {
     print("benzene: Starting\n");
 
