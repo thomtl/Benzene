@@ -99,8 +99,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
 
     this->swapchain = SwapChain{&this->instance, instance.graphics.family, instance.present.family};
     RenderPipeline::Options pipeline_opts{};
-    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
-    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
+    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/backends/vulkan/shaders/fragment.spv"), "main", vk::ShaderStageFlagBits::eFragment);
+    pipeline_opts.shaders.emplace_back(&instance, benzene::read_binary_file("../engine/backends/vulkan/shaders/vertex.spv"), "main", vk::ShaderStageFlagBits::eVertex);
     pipeline_opts.polygon_mode = vk::PolygonMode::eFill;
     this->pipeline = RenderPipeline{&this->instance, &this->swapchain, pipeline_opts};
     instance.add_debug_tag(this->pipeline.get_pipeline(), "Main pipeline");
