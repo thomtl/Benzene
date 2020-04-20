@@ -14,6 +14,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     frame_counter = 0;
     fps = 0;
     framebuffer_resized = false;
+    fps_cap_enabled = false;
+    
     this->instance.window = window;
     if(enable_validation && !this->check_validation_layer_support())
         throw std::runtime_error("Wanted to enable validation layers but they are unsupported");
@@ -631,6 +633,15 @@ void Backend::build_command_buffer(size_t i){
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+
+        /*(glm::quat Qx(glm::angleAxis(glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f}));
+        glm::quat Qy(glm::angleAxis(glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f}));
+        glm::quat Qz(glm::angleAxis(glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f}));
+
+        pc.model *= glm::mat4_cast(Qx);
+        pc.model *= glm::mat4_cast(Qy);
+        pc.model *= glm::mat4_cast(Qz);*/
+
         pc.model = glm::scale(pc.model, model.model->scale);
 
         cmd.pushConstants<PushConstants>(layout, vk::ShaderStageFlagBits::eVertex, 0, {pc});
@@ -642,7 +653,6 @@ void Backend::build_command_buffer(size_t i){
 
         std::array<vk::WriteDescriptorSet, 1> descriptor_writes = {};
 
-        descriptor_writes[0].dstSet = descriptor_sets[i];
         descriptor_writes[0].dstBinding = 0;
         descriptor_writes[0].dstArrayElement = 0;
         descriptor_writes[0].descriptorType = vk::DescriptorType::eCombinedImageSampler;

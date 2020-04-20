@@ -32,7 +32,7 @@ namespace benzene::vulkan
 
     #define ENABLE_WIREFRAME_OUTLINE true // Define needed since we want to use it in #ifdef
     constexpr bool enable_wireframe_outline = ENABLE_WIREFRAME_OUTLINE;
-    constexpr size_t max_frames_in_flight = 16;
+    constexpr size_t max_frames_in_flight = 2;
 
     struct Instance {
         GLFWwindow* window;

@@ -159,13 +159,12 @@ namespace benzene::vulkan
     class Texture {
         public:
         Texture(): instance{nullptr}, image{}, view{}, sampler{nullptr} {}
-        Texture(Instance* instance, benzene::Texture& tex): instance{instance} {
-            std::tie(width, height) = tex.dimensions();
+        Texture(Instance* instance, size_t width, size_t height, const uint8_t* data): instance{instance} {
             size_t size = width * height * 4;
             Buffer transfer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
             transfer.map();
-            memcpy(transfer.data(), tex.bytes().data(), size);
+            memcpy(transfer.data(), data, size);
             transfer.unmap();
 
             image = Image{instance, (size_t)width, (size_t)height, vk::Format::eR8G8B8A8Srgb, vk::SampleCountFlagBits::e1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
@@ -265,6 +264,8 @@ namespace benzene::vulkan
 
             sampler = instance->device.createSampler(sampler_info);
         }
+
+        Texture(Instance* instance, benzene::Texture& tex): Texture{instance, (size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data()} {}
 
         void clean(){
             instance->device.destroySampler(sampler);

@@ -1,9 +1,13 @@
 #include "extra_api.hpp"
 
+#pragma region VK_KHR_push_descriptor
+
 static PFN_vkCmdPushDescriptorSetKHR _vkCmdPushDescriptorSetKHR;
 extern "C" void vkCmdPushDescriptorSetKHR(VkCommandBuffer commandBuffer, VkPipelineBindPoint pipelineBindPoint, VkPipelineLayout layout, uint32_t set, uint32_t descriptorWriteCount, const VkWriteDescriptorSet* pDescriptorWrites){
     _vkCmdPushDescriptorSetKHR(commandBuffer, pipelineBindPoint, layout, set, descriptorWriteCount, pDescriptorWrites);
 }
+
+#pragma endregion
 
 #pragma region VK_EXT_debug_utils
 

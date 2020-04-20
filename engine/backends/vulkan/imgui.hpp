@@ -29,120 +29,7 @@ namespace benzene::vulkan
             int tex_width, tex_height;
             io.Fonts->GetTexDataAsRGBA32(&font_data, &tex_width, &tex_height);
 
-            size_t image_size = tex_height * tex_width * 4;
-
-            vk::ImageCreateInfo image_info{};
-            image_info.imageType = vk::ImageType::e2D;
-            image_info.format = vk::Format::eR8G8B8A8Unorm;
-            image_info.extent.width = tex_width;
-            image_info.extent.height = tex_height;
-            image_info.extent.depth = 1;
-            image_info.mipLevels = 1;
-            image_info.arrayLayers = 1;
-            image_info.samples = vk::SampleCountFlagBits::e1;
-            image_info.tiling = vk::ImageTiling::eOptimal;
-            image_info.usage = vk::ImageUsageFlagBits::eSampled | vk::ImageUsageFlagBits::eTransferDst;
-            image_info.sharingMode = vk::SharingMode::eExclusive;
-            image_info.initialLayout = vk::ImageLayout::eUndefined;
-
-            vma::AllocationCreateInfo alloc_info{};
-            alloc_info.usage = vma::MemoryUsage::eUnknown;
-            alloc_info.requiredFlags = vk::MemoryPropertyFlagBits::eDeviceLocal;
-            std::tie(font_image, font_memory) = instance->allocator.createImage(image_info, alloc_info);
-
-            vk::ImageViewCreateInfo view_info{};
-            view_info.image = font_image;
-            view_info.viewType = vk::ImageViewType::e2D;
-            view_info.format = vk::Format::eR8G8B8A8Unorm;
-            view_info.subresourceRange.aspectMask = vk::ImageAspectFlagBits::eColor;
-            view_info.subresourceRange.levelCount = 1;
-            view_info.subresourceRange.layerCount = 1;
-            this->font_view = instance->device.createImageView(view_info);
-
-            Buffer staging_buffer{instance, image_size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
-
-            staging_buffer.map();
-            memcpy(staging_buffer.data(), font_data, image_size);
-            staging_buffer.unmap();
-
-
-
-            CommandBuffer cmd{instance, &instance->graphics};
-
-            {
-                std::lock_guard guard{cmd};
-                {
-                    vk::ImageMemoryBarrier image_memory_barrier{};
-                    image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-                    image_memory_barrier.oldLayout = vk::ImageLayout::eUndefined;
-                    image_memory_barrier.newLayout = vk::ImageLayout::eTransferDstOptimal;
-                    image_memory_barrier.image = font_image;
-
-                    vk::ImageSubresourceRange subresource_range{};
-                    subresource_range.aspectMask = vk::ImageAspectFlagBits::eColor;
-                    subresource_range.baseMipLevel = 0;
-                    subresource_range.levelCount = 1;
-                    subresource_range.layerCount = 1;
-
-                    image_memory_barrier.subresourceRange = subresource_range;
-
-                    image_memory_barrier.srcAccessMask = {}; // since eUndefined layout
-                    image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eTransferWrite;
-
-                    cmd.handle().pipelineBarrier(vk::PipelineStageFlagBits::eHost, vk::PipelineStageFlagBits::eTransfer, {}, {}, {}, {image_memory_barrier});
-                }
-                
-
-                vk::BufferImageCopy buffer_copy_region{};
-                buffer_copy_region.imageSubresource.aspectMask = vk::ImageAspectFlagBits::eColor;
-                buffer_copy_region.imageSubresource.layerCount = 1;
-                buffer_copy_region.imageExtent.width = tex_width;
-                buffer_copy_region.imageExtent.height = tex_height;
-                buffer_copy_region.imageExtent.depth = 1;
-
-                cmd.handle().copyBufferToImage(staging_buffer.handle(), font_image, vk::ImageLayout::eTransferDstOptimal, {buffer_copy_region});
-
-                {
-                    vk::ImageMemoryBarrier image_memory_barrier{};
-                    image_memory_barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-                    image_memory_barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-
-                    image_memory_barrier.oldLayout = vk::ImageLayout::eTransferDstOptimal;
-                    image_memory_barrier.newLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-                    image_memory_barrier.image = font_image;
-
-                    vk::ImageSubresourceRange subresource_range{};
-                    subresource_range.aspectMask = vk::ImageAspectFlagBits::eColor;
-                    subresource_range.baseMipLevel = 0;
-                    subresource_range.levelCount = 1;
-                    subresource_range.layerCount = 1;
-
-                    image_memory_barrier.subresourceRange = subresource_range;
-
-                    image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eTransferWrite; // since eUndefined layout
-                    if(image_memory_barrier.srcAccessMask == vk::AccessFlags{}){
-                        image_memory_barrier.srcAccessMask = vk::AccessFlagBits::eHostWrite | vk::AccessFlagBits::eTransferWrite;
-                    }
-                    image_memory_barrier.dstAccessMask = vk::AccessFlagBits::eShaderRead;
-
-                    cmd.handle().pipelineBarrier(vk::PipelineStageFlagBits::eTransfer, vk::PipelineStageFlagBits::eFragmentShader, {}, {}, {}, {image_memory_barrier});
-                }
-            }
-
-            staging_buffer.clean();
-
-            vk::SamplerCreateInfo sampler_info{};
-            sampler_info.maxAnisotropy = 1.0f;
-            sampler_info.magFilter = vk::Filter::eLinear;
-            sampler_info.minFilter = vk::Filter::eLinear;
-            sampler_info.mipmapMode = vk::SamplerMipmapMode::eLinear;
-            sampler_info.addressModeU = vk::SamplerAddressMode::eClampToEdge;
-            sampler_info.addressModeV = vk::SamplerAddressMode::eClampToEdge;
-            sampler_info.addressModeW = vk::SamplerAddressMode::eClampToEdge;
-            sampler_info.borderColor = vk::BorderColor::eFloatOpaqueWhite;
-            this->sampler = instance->device.createSampler(sampler_info);
+            font = Texture{instance, (size_t)tex_width, (size_t)tex_height, font_data};
 
             std::array<vk::DescriptorPoolSize, 1> pool_size {
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1}
@@ -172,8 +59,8 @@ namespace benzene::vulkan
 
             vk::DescriptorImageInfo font_descriptor{};
             font_descriptor.imageLayout = vk::ImageLayout::eShaderReadOnlyOptimal;
-            font_descriptor.imageView = this->font_view;
-            font_descriptor.sampler = this->sampler;
+            font_descriptor.imageView = this->font.get_view();
+            font_descriptor.sampler = this->font.get_sampler();
 
             std::array<vk::WriteDescriptorSet, 1> write_descriptor_sets = {
                 vk::WriteDescriptorSet{descriptor_set, 0, 0, 1, vk::DescriptorType::eCombinedImageSampler, &font_descriptor}
@@ -241,14 +128,14 @@ namespace benzene::vulkan
             vk::PipelineMultisampleStateCreateInfo multisampling{};
             multisampling.rasterizationSamples = instance->find_max_msaa_samples();
 
-            vk::DynamicState dynamic_states[] = {
+            std::array<vk::DynamicState, 2> dynamic_states = {
                 vk::DynamicState::eViewport,
                 vk::DynamicState::eScissor
             };
 
             vk::PipelineDynamicStateCreateInfo dynamic_state{};
-            dynamic_state.dynamicStateCount = 2;
-            dynamic_state.pDynamicStates = dynamic_states;
+            dynamic_state.dynamicStateCount = dynamic_states.size();
+            dynamic_state.pDynamicStates = dynamic_states.data();
 
             std::array<vk::VertexInputBindingDescription, 1> vertex_input_bindings = {
                 vk::VertexInputBindingDescription{0, sizeof(ImDrawVert), vk::VertexInputRate::eVertex}
@@ -314,11 +201,8 @@ namespace benzene::vulkan
             
             for(auto& index : indices)
                 index.clean();
-
-            instance->device.destroyImageView(font_view);
-            instance->allocator.destroyImage(font_image, font_memory);
-
-            instance->device.destroySampler(sampler);
+            
+            font.clean();
 
             instance->device.destroyPipelineCache(pipeline_cache);
             instance->device.destroyPipeline(pipeline);
@@ -385,6 +269,8 @@ namespace benzene::vulkan
                 return;
 
             buf.bindVertexBuffers(0, {vertices[i].handle()}, {0});
+
+            static_assert(sizeof(ImDrawIdx) == 2 || sizeof(ImDrawIdx) == 4, "//TODO: Support the 8bit indices extension??");
             buf.bindIndexBuffer(indices[i].handle(), 0, (sizeof(ImDrawIdx) == 2) ? vk::IndexType::eUint16 : vk::IndexType::eUint32);
 
             for(int i = 0; i < draw_data.CmdListsCount; i++){
@@ -405,19 +291,17 @@ namespace benzene::vulkan
             }
         }
 
-        Imgui(): instance{nullptr}, swapchain{nullptr}, renderpass{nullptr}, sampler{nullptr}, vertices{}, indices{}, font_memory{nullptr}, font_image{nullptr}, font_view{nullptr}, pipeline_cache{nullptr}, pipeline_layout{nullptr}, pipeline{nullptr}, descriptor_pool{nullptr}, descriptor_set_layout{nullptr}, descriptor_set{nullptr} {};
+        Imgui(): instance{nullptr}, swapchain{nullptr}, renderpass{nullptr}, vertices{}, indices{}, font{}, pipeline_cache{nullptr}, pipeline_layout{nullptr}, pipeline{nullptr}, descriptor_pool{nullptr}, descriptor_set_layout{nullptr}, descriptor_set{nullptr} {};
 
         private:
         Instance* instance;
         SwapChain* swapchain;
         RenderPass* renderpass;
-        vk::Sampler sampler;
+        
         std::vector<BouncedBuffer<std::byte>> vertices;
         std::vector<BouncedBuffer<std::byte>> indices;
 
-        vma::Allocation font_memory;
-        vk::Image font_image;
-        vk::ImageView font_view;
+        vulkan::Texture font;
 
         vk::PipelineCache pipeline_cache;
         vk::PipelineLayout pipeline_layout;
