@@ -98,6 +98,8 @@ namespace benzene::vulkan {
             this->fps_cap = fps;
         }
 
+        void imgui_update() {}
+
         template<typename F>
         std::optional<uint32_t> get_queue_index(vk::PhysicalDevice dev, F functor){
             auto queue_families = dev.getQueueFamilyProperties();

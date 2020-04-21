@@ -1,7 +1,6 @@
 #pragma once
 
-#define GLFW_INCLUDE_VULKAN
-#include <GLFW/glfw3.h>
+struct GLFWwindow; // Forward Decl
 
 #include "../libs/imgui/imgui.h"
 #include "../libs/stb/stb_image.h"
@@ -15,7 +14,11 @@
 #include <cstdint>
 
 #define GLM_FORCE_RADIANS
+
+#ifdef BENZENE_VULKAN
 #define GLM_FORCE_DEPTH_ZERO_TO_ONE
+#endif
+
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 
@@ -69,6 +72,7 @@ namespace benzene
         virtual void end_run() = 0;
         virtual void draw_debug_window() = 0;
         virtual void set_fps_cap(bool enabled, size_t fps = 60) = 0;
+        virtual void imgui_update() = 0;
     };
 
     struct FrameData {

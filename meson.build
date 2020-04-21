@@ -1,4 +1,4 @@
-project('Benzene', 'cpp')
+project('Benzene', 'cpp', 'c')
 
 if false
     add_global_arguments('-fsanitize=undefined', language: 'cpp')

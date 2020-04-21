@@ -1,7 +1,14 @@
 #include <benzene/benzene.hpp>
 #include <iostream>
 
+#ifdef BENZENE_VULKAN
 #include "../backends/vulkan/core.hpp"
+#endif
+
+#ifdef BENZENE_OPENGL
+#include "../backends/opengl/core.hpp"
+#endif
+
 #include "format.hpp"
 
 benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
@@ -33,9 +40,30 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
 
     glfwInit();
 
+    #ifdef BENZENE_VULKAN
     glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    #endif
+
+    #ifdef BENZENE_OPENGL
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    #endif
+
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
     this->window = glfwCreateWindow(this->width, this->height, name, nullptr, nullptr);
+    if(!this->window){
+        const char* err;
+        glfwGetError(&err);
+        print("benzene: Couldn't create GLFW window, error {:s}\n", err);
+        return;
+    }
+    
+    #ifdef BENZENE_OPENGL
+    glfwMakeContextCurrent(this->window);
+    #endif
+
     glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height){
         auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
         backend.framebuffer_resize_callback(width, height);
@@ -53,7 +81,14 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
         backend.mouse_scroll_callback(xoffset, yoffset);
     });
     
+    #ifdef BENZENE_VULKAN
     this->backend = std::make_unique<vulkan::Backend>(name, this->window);
+    #endif
+
+    #ifdef BENZENE_OPENGL
+    this->backend = std::make_unique<opengl::Backend>(name, this->window);
+    #endif
+
     glfwSetWindowUserPointer(window, (void*)&(*this->backend));
 }
 
@@ -61,6 +96,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
     FrameData frame_data{};
     while(!glfwWindowShouldClose(window) && !frame_data.should_exit){
         glfwPollEvents();
+        this->backend->imgui_update();
         ImGui::NewFrame();
         functor(frame_data);
 
@@ -69,6 +105,10 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
 
         ImGui::Render();
         this->backend->frame_update(render_models);
+
+        #ifdef BENZENE_OPENGL
+        glfwSwapBuffers(window);
+        #endif
     }
     this->backend->end_run();
 }
