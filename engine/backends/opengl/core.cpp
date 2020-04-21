@@ -68,6 +68,13 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     glViewport(0, 0, width, height);
+
+    glCullFace(GL_BACK);
+    glFrontFace(GL_CCW);
+
+    glEnable(GL_CULL_FACE);
+
+
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
 
@@ -105,9 +112,6 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     prog.use();
     prog.set_uniform("view", glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f}));
     prog.set_uniform("projection", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
-
-    glCullFace(GL_BACK);
-    glFrontFace(GL_CCW);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
