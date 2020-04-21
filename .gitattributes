@@ -1,0 +1,4 @@
+engine/backends/opengl/libs/glad/* linguist-vendored
+engine/backends/opengl/libs/imgui/* linguist-vendored
+engine/backends/vulkan/libs/* linguist-vendored
+engine/libs/* linguist-vendored
