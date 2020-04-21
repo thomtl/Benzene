@@ -18,6 +18,8 @@ namespace benzene::vulkan
         Imgui(Instance* instance, SwapChain* swapchain, RenderPass* renderpass, size_t n_buffers): instance{instance}, swapchain{swapchain}, renderpass{renderpass} {
             vertices.resize(n_buffers);
             indices.resize(n_buffers);
+
+            IMGUI_CHECKVERSION();
             ImGui::CreateContext();
             ImGui::StyleColorsDark();
 

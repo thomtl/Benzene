@@ -65,6 +65,10 @@ namespace benzene::vulkan {
         void frame_update(std::unordered_map<ModelId, Model*>& models);
         void end_run();
 
+        static void glfw_window_hints(){
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+        }
+
         private:
         static VKAPI_ATTR VkBool32 VKAPI_CALL debug_callback(VkDebugUtilsMessageSeverityFlagBitsEXT _severity, VkDebugUtilsMessageTypeFlagsEXT _type, const VkDebugUtilsMessengerCallbackDataEXT* callback_data, void* user_data);
         vk::DebugUtilsMessengerCreateInfoEXT make_debug_messenger_create_info();

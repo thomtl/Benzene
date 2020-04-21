@@ -22,6 +22,13 @@ namespace benzene::opengl
         void frame_update(std::unordered_map<ModelId, benzene::Model*>& models);
         void end_run();
 
+        static void glfw_window_hints(){
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+        }
+
         private:
         void framebuffer_resize_callback(int width, int height);
 

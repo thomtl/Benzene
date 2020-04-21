@@ -41,14 +41,11 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
     glfwInit();
 
     #ifdef BENZENE_VULKAN
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
+    vulkan::Backend::glfw_window_hints();
     #endif
 
     #ifdef BENZENE_OPENGL
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+    opengl::Backend::glfw_window_hints();
     #endif
 
     glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);

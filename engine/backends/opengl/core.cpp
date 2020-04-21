@@ -6,6 +6,10 @@ using namespace benzene::opengl;
 static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userptr){
     (void)length;
     (void)userptr;
+
+    if(id == 1 || id == 2)
+        return;
+
     print("--------------------------------\n");
     print("Debug message ({:d}): {:s}\n", (uint64_t)id, (const char*)message);
 
@@ -125,7 +129,7 @@ void Backend::framebuffer_resize_callback(int width, int height){
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
-    glClearColor(0.2f, 0.3f, 0.3f, 1.0f);
+    glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
     // First things first, create state of models that the backend understands
