@@ -14,6 +14,9 @@
 
 namespace benzene::opengl
 {
+    constexpr bool debug = true;
+    constexpr bool wireframe_rendering = true;
+
     class Backend : public IBackend {
         public:
         Backend(const char* application_name, GLFWwindow* window);
@@ -26,12 +29,16 @@ namespace benzene::opengl
             glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
             glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-            glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
             glfwWindowHint(GLFW_SAMPLES, 4);
+
+            if constexpr (debug)
+                glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         }
 
         private:
         void framebuffer_resize_callback(int width, int height);
+        void imgui_update();
+        void draw_debug_window();
 
         void mouse_button_callback(int button, bool state){
             (void)button;
@@ -53,14 +60,9 @@ namespace benzene::opengl
             (void)fps;
         }
 
-        void imgui_update();
-
-
-        void draw_debug_window(){
-            
-        }
-
         Program prog;
         std::unordered_map<ModelId, opengl::Model> internal_models;
+
+        bool is_wireframe;
     };
 } // namespace benzene::opengl
