@@ -68,6 +68,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window){
     glfwGetWindowSize(window, &width, &height);
     glViewport(0, 0, width, height);
     glEnable(GL_DEPTH_TEST);
+    glEnable(GL_MULTISAMPLE);
 
     prog.add_shader(GL_VERTEX_SHADER, ""
         "#version 450 core\n"
