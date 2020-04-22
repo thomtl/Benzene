@@ -24,6 +24,7 @@ namespace benzene::vulkan
             ImGui::StyleColorsDark();
 
             auto& io = ImGui::GetIO();
+            io.BackendFlags |= ImGuiBackendFlags_HasMouseCursors | ImGuiBackendFlags_RendererHasVtxOffset;
             io.DisplaySize = ImVec2{(float)swapchain->get_extent().width, (float)swapchain->get_extent().height};
             io.DisplayFramebufferScale = ImVec2{1.0f, 1.0f};
 
@@ -31,7 +32,7 @@ namespace benzene::vulkan
             int tex_width, tex_height;
             io.Fonts->GetTexDataAsRGBA32(&font_data, &tex_width, &tex_height);
 
-            font = Texture{instance, (size_t)tex_width, (size_t)tex_height, font_data};
+            font = Texture{instance, (size_t)tex_width, (size_t)tex_height, font_data, vk::Format::eR8G8B8A8Unorm};
 
             std::array<vk::DescriptorPoolSize, 1> pool_size {
                 vk::DescriptorPoolSize{vk::DescriptorType::eCombinedImageSampler, 1}

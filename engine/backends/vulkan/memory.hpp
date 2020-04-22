@@ -159,7 +159,7 @@ namespace benzene::vulkan
     class Texture {
         public:
         Texture(): instance{nullptr}, image{}, view{}, sampler{nullptr} {}
-        Texture(Instance* instance, size_t width, size_t height, const uint8_t* data): instance{instance} {
+        Texture(Instance* instance, size_t width, size_t height, const uint8_t* data, vk::Format format = vk::Format::eR8G8B8A8Srgb): instance{instance} {
             size_t size = width * height * 4;
             Buffer transfer{instance, size, vk::BufferUsageFlagBits::eTransferSrc, vk::MemoryPropertyFlagBits::eHostVisible | vk::MemoryPropertyFlagBits::eHostCoherent};
 
@@ -167,7 +167,7 @@ namespace benzene::vulkan
             memcpy(transfer.data(), data, size);
             transfer.unmap();
 
-            image = Image{instance, (size_t)width, (size_t)height, vk::Format::eR8G8B8A8Srgb, vk::SampleCountFlagBits::e1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
+            image = Image{instance, (size_t)width, (size_t)height, format, vk::SampleCountFlagBits::e1, vk::ImageUsageFlagBits::eTransferDst | vk::ImageUsageFlagBits::eSampled, vk::MemoryPropertyFlagBits::eDeviceLocal};
 
             auto transition_image_layout = [this]([[maybe_unused]] vk::Format format, vk::ImageLayout old_layout, vk::ImageLayout new_layout){
                 CommandBuffer cmd{this->instance, &this->instance->graphics};
@@ -233,13 +233,13 @@ namespace benzene::vulkan
                 }
             };
 
-            transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
+            transition_image_layout(format, vk::ImageLayout::eUndefined, vk::ImageLayout::eTransferDstOptimal);
             copy_buffer_to_image(transfer, image, width, height);
-            transition_image_layout(vk::Format::eR8G8B8A8Srgb, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
+            transition_image_layout(format, vk::ImageLayout::eTransferDstOptimal, vk::ImageLayout::eShaderReadOnlyOptimal);
 
             transfer.clean();
 
-            view = ImageView{instance, image, vk::Format::eR8G8B8A8Srgb, vk::ImageAspectFlagBits::eColor};
+            view = ImageView{instance, image, format, vk::ImageAspectFlagBits::eColor};
 
             vk::SamplerCreateInfo sampler_info{};
             sampler_info.magFilter = vk::Filter::eLinear;
