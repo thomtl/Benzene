@@ -1,6 +1,7 @@
 #include "core.hpp"
 #include "../../core/format.hpp"
 #include <mutex>
+#include <thread>
 
 using namespace benzene::opengl;
 
@@ -213,6 +214,8 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
         last_frame_timestamp = time_end;
     }
     
+    if(fps_cap_enabled)
+        std::this_thread::sleep_for(std::chrono::duration<double, std::milli>(std::chrono::duration<double, std::milli>(1000 / this->fps_cap) - (time_end - time_begin)));
 }
 
 void Backend::imgui_update(){

@@ -70,15 +70,16 @@ namespace benzene::opengl
         }
 
         void set_fps_cap(bool enabled, size_t fps){
-            (void)enabled;
-            (void)fps;
+            this->fps_cap_enabled = enabled;
+            this->fps_cap = fps;
         }
 
         Program prog;
         std::unordered_map<ModelId, opengl::Model> internal_models;
 
-        bool is_wireframe;
+        bool is_wireframe, fps_cap_enabled;
         float frame_time, fps, min_frame_time, max_frame_time;
+        uint64_t fps_cap;
         size_t frame_counter;
         std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
 
