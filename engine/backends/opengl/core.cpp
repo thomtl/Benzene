@@ -1,11 +1,12 @@
 #include "core.hpp"
 #include "../../core/format.hpp"
+#include <mutex>
 
 using namespace benzene::opengl;
 
-static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severity, GLsizei length, const GLchar* message, const void* userptr){
-    (void)length;
-    (void)userptr;
+static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum severity, [[maybe_unused]] GLsizei length, const GLchar* message, [[maybe_unused]] const void* userptr){
+    static std::mutex debug_lock{};
+    std::lock_guard guard{debug_lock};
 
     if(id == 1 || id == 2)
         return;
@@ -43,11 +44,9 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum
         case GL_DEBUG_SEVERITY_LOW: print("Severity: Low\n"); break;
         case GL_DEBUG_SEVERITY_NOTIFICATION: print("Severity: Notification\n"); break;
     }
-
-    print("--------------------------------\n");
 }
 
-Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe{false} {
+Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* window): is_wireframe{false} {
     print("opengl: Starting OpenGL Backend\n");
 
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -90,6 +89,8 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
 
+    glLineWidth(2.0f);
+
     prog.add_shader(GL_VERTEX_SHADER, ""
         "#version 450 core\n"
         "uniform mat4 model;\n"
@@ -131,12 +132,16 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
 
     ImGui_ImplGlfw_InitForOpenGL(window, true);
     ImGui_ImplOpenGL3_Init();
-
-    (void)application_name;
 }
 
 Backend::~Backend(){
+    for(auto& [id, model] : internal_models)
+        model.clean();
 
+    prog.clean();
+
+    ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
 }
 
 void Backend::framebuffer_resize_callback(int width, int height){

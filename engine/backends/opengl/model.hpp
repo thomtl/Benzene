@@ -33,9 +33,14 @@ namespace benzene::opengl
             return handle;
         }
 
-        void bind(){
-            glActiveTexture(GL_TEXTURE0);
+        void bind(int i){
+            assert(i <= 31); // GL Current bound texture limit
+            glActiveTexture(GL_TEXTURE0 + i);
             glBindTexture(GL_TEXTURE_2D, handle);
+        }
+
+        void clean(){
+            glDeleteTextures(1, &handle);
         }
 
         private:
@@ -79,7 +84,7 @@ namespace benzene::opengl
         }
 
         void bind(){
-            tex.bind();
+            tex.bind(0);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
             glBindVertexArray(vao);
         }
@@ -88,6 +93,14 @@ namespace benzene::opengl
             this->bind();
 
             glDrawElements(GL_TRIANGLES, n_indicies, GL_UNSIGNED_INT, 0);
+        }
+
+        void clean(){
+            glDeleteVertexArrays(1, &vao);
+            glDeleteBuffers(1, &vbo);
+            glDeleteBuffers(1, &ebo);
+
+            tex.clean();
         }
 
         benzene::Model* model;
