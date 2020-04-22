@@ -201,7 +201,7 @@ void Backend::imgui_update(){
 }
 
 void Backend::end_run(){
-    
+    glFinish();
 }
 
 void Backend::draw_debug_window(){
