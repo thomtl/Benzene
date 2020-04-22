@@ -53,7 +53,7 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
         throw std::runtime_error("benzene/opengl: Failed to initialize GLAD");
 
-    if constexpr (debug) {
+    if constexpr (validation) {
         GLint flags;
         glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
         if(flags & GL_CONTEXT_FLAG_DEBUG_BIT){
@@ -65,6 +65,19 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
         }
     }
 
+    if constexpr (debug) {
+        print("opengl: Vendor: {:s}\n", glGetString(GL_VENDOR));
+        print("        Renderer: {:s}\n", glGetString(GL_RENDERER));
+        print("        GL Version: {:s}\n", glGetString(GL_VERSION));
+        print("        GLSL Version: {:s}\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+
+        /*GLint n_extensions;
+        glGetIntegerv(GL_NUM_EXTENSIONS, &n_extensions);
+        print("opengl: Supported extensions\n");
+        for(int i = 0; i < n_extensions; i++)
+            print("\t- {:s}\n", glGetStringi(GL_EXTENSIONS, i));*/
+    }
+
     int width, height;
     glfwGetWindowSize(window, &width, &height);
     glViewport(0, 0, width, height);
@@ -73,7 +86,6 @@ Backend::Backend(const char* application_name, GLFWwindow* window): is_wireframe
     glFrontFace(GL_CCW);
 
     glEnable(GL_CULL_FACE);
-
 
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);

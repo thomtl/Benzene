@@ -12,8 +12,17 @@
 #include "libs/imgui/imgui_impl_glfw.h"
 #include "libs/imgui/imgui_impl_opengl3.h"
 
+template<>
+struct format::formatter<const GLubyte*> {
+	template<typename OutputIt>
+	static void format(format::format_output_it<OutputIt>& it, [[maybe_unused]] format::format_args args, const GLubyte* item){        
+		formatter<const char*>::format(it, args, (const char*)item);
+    }
+};
+
 namespace benzene::opengl
 {
+    constexpr bool validation = true;
     constexpr bool debug = true;
     constexpr bool wireframe_rendering = true;
 
@@ -31,7 +40,7 @@ namespace benzene::opengl
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
             glfwWindowHint(GLFW_SAMPLES, 4);
 
-            if constexpr (debug)
+            if constexpr (validation)
                 glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         }
 

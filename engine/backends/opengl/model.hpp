@@ -60,8 +60,6 @@ namespace benzene::opengl
             glGenBuffers(1, &ebo);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * indicies.size(), indicies.data(), GL_STATIC_DRAW);
-            //glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-
             
             glBindVertexArray(vao);
 
@@ -76,12 +74,13 @@ namespace benzene::opengl
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
+
+            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
         }
 
         void bind(){
             tex.bind();
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
             glBindVertexArray(vao);
         }
 
