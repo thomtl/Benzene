@@ -150,10 +150,10 @@ namespace benzene::vulkan {
         
         uint32_t graphics_queue_id, presentation_queue_id;
 
-        float frame_time, min_frame_time, max_frame_time;
+        float frame_time, min_frame_time, max_frame_time, fps;
         std::array<float, 100> last_frame_times;
         std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
-        uint64_t frame_counter, fps;
+        uint64_t frame_counter;
 
         std::unordered_map<ModelId, BackendModel> internal_models;
     };

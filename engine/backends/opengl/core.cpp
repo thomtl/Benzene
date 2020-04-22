@@ -47,6 +47,13 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum
 }
 
 Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* window): is_wireframe{false} {
+    frame_time = 0.0f;
+    max_frame_time = 0.0f;
+    min_frame_time = 9999.0f;
+    last_frame_times = {};
+    frame_counter = 0;
+    fps = 0;
+    glfwSwapInterval(0); // Remove 60 FPS Cap
     print("opengl: Starting OpenGL Backend\n");
 
     if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
@@ -89,10 +96,10 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
     glEnable(GL_DEPTH_TEST);
     glEnable(GL_MULTISAMPLE);
 
-    glLineWidth(2.0f);
+    //glLineWidth(2.0f);
 
     prog.add_shader(GL_VERTEX_SHADER, ""
-        "#version 450 core\n"
+        "#version 420 core\n"
         "uniform mat4 model;\n"
         "uniform mat4 view;\n"
         "uniform mat4 projection;\n"
@@ -110,7 +117,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
         "}\n");
 
     prog.add_shader(GL_FRAGMENT_SHADER, ""
-        "#version 450 core\n"
+        "#version 420 core\n"
         "uniform sampler2D textureSampler;\n"
         "\n"
         "layout (location = 0) in vec3 inColour;\n"
@@ -151,6 +158,7 @@ void Backend::framebuffer_resize_callback(int width, int height){
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
+    auto time_begin = std::chrono::high_resolution_clock::now();
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
@@ -192,6 +200,18 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
     }
 
     ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+
+    this->frame_counter++;
+
+    auto time_end = std::chrono::high_resolution_clock::now();
+    frame_time = (float)(std::chrono::duration<double, std::milli>(time_end - time_begin).count());
+
+    auto fps_timer = (float)std::chrono::duration<double, std::milli>(time_end - last_frame_timestamp).count();
+    if(fps_timer > 1000.0f){
+        fps = ((float)frame_counter * (1000.0f / fps_timer));
+        frame_counter = 0;
+        last_frame_timestamp = time_end;
+    }
     
 }
 
@@ -215,6 +235,19 @@ void Backend::draw_debug_window(){
         else
             glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
     }
+
+    std::rotate(last_frame_times.begin(), last_frame_times.begin() + 1, last_frame_times.end());
+    last_frame_times.back() = this->frame_time;
+
+    if(frame_time < min_frame_time)
+        min_frame_time = frame_time;
+
+    if(frame_time > max_frame_time)
+        max_frame_time = frame_time;
+
+    ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
+
+    ImGui::Text("FPS: %f\n", this->fps);
 
     ImGui::End();
 }

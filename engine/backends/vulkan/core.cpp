@@ -278,7 +278,7 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
 
     auto fps_timer = (float)std::chrono::duration<double, std::milli>(time_end - last_frame_timestamp).count();
     if(fps_timer > 1000.0f){
-        fps = (uint32_t)((float)frame_counter * (1000.0f / fps_timer));
+        fps = ((float)frame_counter * (1000.0f / fps_timer));
         frame_counter = 0;
         last_frame_timestamp = time_end;
     }
@@ -729,8 +729,7 @@ void Backend::draw_debug_window(){
         max_frame_time = frame_time;
 
     ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
-    auto fps_str = format_to_str("FPS: {:d}", fps);
-    ImGui::TextUnformatted(fps_str.c_str());
+    ImGui::Text("FPS: %f\n", fps);
 
     ImGui::End();
 }

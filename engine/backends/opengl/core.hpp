@@ -5,6 +5,9 @@
 
 #include <benzene/benzene.hpp>
 
+#include <chrono>
+
+
 #include "model.hpp"
 #include "pipeline.hpp"
 
@@ -35,9 +38,11 @@ namespace benzene::opengl
         void end_run();
 
         static void glfw_window_hints(){
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // TODO: Figure out the maximum version
+            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
             glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
             glfwWindowHint(GLFW_SAMPLES, 4);
 
             if constexpr (validation)
@@ -73,5 +78,10 @@ namespace benzene::opengl
         std::unordered_map<ModelId, opengl::Model> internal_models;
 
         bool is_wireframe;
+        float frame_time, fps, min_frame_time, max_frame_time;
+        size_t frame_counter;
+        std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
+
+        std::array<float, 100> last_frame_times;
     };
 } // namespace benzene::opengl
