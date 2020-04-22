@@ -7,6 +7,8 @@
 
 #include <vector>
 
+#include "pipeline.hpp"
+
 namespace benzene::opengl
 {
     class Texture {
@@ -55,7 +57,7 @@ namespace benzene::opengl
     class Model {
         public:
         Model(): vao{0}, vbo{}, ebo{} {}
-        Model(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indicies, benzene::Texture& tex): tex{tex}, n_indicies{indicies.size()} {
+        Model(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indicies, benzene::Texture& tex, Program& program): tex{tex}, program{&program}, n_indicies{indicies.size()} {
             glGenVertexArrays(1, &vao);
 
             glGenBuffers(1, &vbo);
@@ -68,14 +70,17 @@ namespace benzene::opengl
             
             glBindVertexArray(vao);
 
-            glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-            glEnableVertexAttribArray(0);
+            auto position_loc = program.get_vector_attrib_location("inPosition");
+            glVertexAttribPointer(position_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
+            glEnableVertexAttribArray(position_loc);
 
-            glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, colour));
-            glEnableVertexAttribArray(1);
+            auto colour_loc = program.get_vector_attrib_location("inColour");
+            glVertexAttribPointer(colour_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, colour));
+            glEnableVertexAttribArray(colour_loc);
 
-            glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
-            glEnableVertexAttribArray(2);
+            auto uv_loc = program.get_vector_attrib_location("inUv");
+            glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
+            glEnableVertexAttribArray(uv_loc);
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
@@ -90,6 +95,7 @@ namespace benzene::opengl
         }
 
         void draw(){
+            program->use();
             this->bind();
 
             glDrawElements(GL_TRIANGLES, n_indicies, GL_UNSIGNED_INT, 0);
@@ -106,8 +112,9 @@ namespace benzene::opengl
         benzene::Model* model;
 
         private:
-        uint32_t vao, vbo, ebo;
+        uint32_t vao, vbo, ebo, shader_program;
         Texture tex;
+        Program* program;
 
         size_t n_indicies;
     };

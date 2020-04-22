@@ -172,7 +172,7 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
         for(const auto index : model->mesh.indices)
             internal_indicies.push_back(index);
 
-        opengl::Model item{internal_vertices, internal_indicies, model->texture};
+        opengl::Model item{internal_vertices, internal_indicies, model->texture, prog};
         item.model = model;
 
         internal_models[id] = std::move(item);

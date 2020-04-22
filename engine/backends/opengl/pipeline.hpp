@@ -100,6 +100,10 @@ namespace benzene::opengl
             glUniform2f(loc, vec.x, vec.y);
         }
 
+        uint32_t get_vector_attrib_location(const std::string& name){
+            return glGetAttribLocation(handle, name.c_str());
+        }
+
         void clean(){
             glDeleteProgram(handle);
         }
