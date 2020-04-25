@@ -163,7 +163,7 @@ RenderPipeline::RenderPipeline(Instance* instance, SwapChain* swapchain, RenderP
         ubo_layout_bindings[0].binding = 0;
         ubo_layout_bindings[0].descriptorType = vk::DescriptorType::eUniformBuffer;
         ubo_layout_bindings[0].descriptorCount = 1;
-        ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex;
+        ubo_layout_bindings[0].stageFlags = vk::ShaderStageFlagBits::eVertex | vk::ShaderStageFlagBits::eFragment;
 
         vk::DescriptorSetLayoutCreateInfo layout_info{};
         layout_info.bindingCount = ubo_layout_bindings.size();

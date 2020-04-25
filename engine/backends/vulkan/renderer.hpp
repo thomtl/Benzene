@@ -10,6 +10,7 @@ namespace benzene::vulkan
     struct Vertex {
         glm::vec3 pos;
         glm::vec3 colour;
+        glm::vec3 normal;
         glm::vec2 uv;
 
         static vk::VertexInputBindingDescription get_binding_description(){
@@ -20,8 +21,8 @@ namespace benzene::vulkan
             return info;
         }
 
-        static std::array<vk::VertexInputAttributeDescription, 3> get_attribute_descriptions(){
-            std::array<vk::VertexInputAttributeDescription, 3> desc{};
+        static std::array<vk::VertexInputAttributeDescription, 4> get_attribute_descriptions(){
+            std::array<vk::VertexInputAttributeDescription, 4> desc{};
             desc[0].binding = 0;
             desc[0].location = 0;
             desc[0].format = vk::Format::eR32G32B32Sfloat;
@@ -34,8 +35,13 @@ namespace benzene::vulkan
 
             desc[2].binding = 0;
             desc[2].location = 2;
-            desc[2].format = vk::Format::eR32G32Sfloat;
-            desc[2].offset = offsetof(Vertex, uv);
+            desc[2].format = vk::Format::eR32G32B32Sfloat;
+            desc[2].offset = offsetof(Vertex, normal);
+
+            desc[3].binding = 0;
+            desc[3].location = 3;
+            desc[3].format = vk::Format::eR32G32Sfloat;
+            desc[3].offset = offsetof(Vertex, uv);
 
             return desc;
         }
@@ -44,10 +50,12 @@ namespace benzene::vulkan
     struct UniformBufferObject {
         glm::mat4 view;
         glm::mat4 proj;
+        glm::vec3 camera_position;
     };
 
     struct PushConstants {
         glm::mat4 model;
+        glm::mat3 normal;
     };
 
     template<typename T>

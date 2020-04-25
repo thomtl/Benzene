@@ -136,6 +136,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		const vec3 lightPosition = vec3(500.0, 200.0, 300.0);//1.2, 1.0, 2.0);
 		const float ambientStrength = 0.1;
 		const float specularStrength = 0.5;
+		const bool blinn = true;
+
 		
 		out vec4 fragColour;
 		void main() {
@@ -148,7 +150,6 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		   	float diffuseIntensity = max(dot(normal, lightDir), 0.0);
 		   	vec3 diffuse = lightColour * diffuseIntensity;
 
-			const bool blinn = true;
 			float specularIntensity;
 			if (blinn){
 				vec3 halfwayDir = normalize(lightDir + cameraDir);
@@ -160,7 +161,6 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 			vec3 specular = specularStrength * specularIntensity * lightColour;
 		   
 		   	vec3 result = (ambient + diffuse + specular) * (inColour.xyz * texture(textureSampler, inUv).xyz);
-		   	fragColour = vec4(texture(textureSampler, inUv).xyz * (inColour.xyz), 1.0);
 		   	fragColour = vec4(result, 1.0);
 		})");
 

@@ -180,6 +180,7 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
             auto& item = internal_vertices.emplace_back();
             item.pos = vertex.pos;
             item.colour = vertex.colour;
+            item.normal = vertex.normal;
             item.uv = vertex.uv;
         }
 
@@ -216,10 +217,12 @@ void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
         ubos[i].map();
 
         auto& ubo = *(UniformBufferObject*)ubos[i].data();
-
-        ubo.view = glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
+        auto camera_pos = glm::vec3{2.0f, 2.0f, 2.0f};
+        ubo.view = glm::lookAt(camera_pos, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f});
         ubo.proj = glm::perspective(glm::radians(45.0f), this->swapchain.get_extent().width / (float)this->swapchain.get_extent().height, 0.1f, 10.0f);
         ubo.proj[1][1] *= -1; // GL compat
+
+        ubo.camera_position = camera_pos;
 
         ubos[i].unmap();
     };
@@ -630,9 +633,10 @@ void Backend::build_command_buffer(size_t i){
     auto draw_model = [this, &cmd, i]([[maybe_unused]] uint64_t id, BackendModel& model, vk::PipelineLayout& layout){
         PushConstants pc{};
         pc.model = glm::translate(glm::mat4{1.0f}, model.model->pos);
-        pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
         pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+        pc.model = glm::rotate(pc.model, glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+
 
         /*(glm::quat Qx(glm::angleAxis(glm::radians(model.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f}));
         glm::quat Qy(glm::angleAxis(glm::radians(model.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f}));
@@ -643,6 +647,8 @@ void Backend::build_command_buffer(size_t i){
         pc.model *= glm::mat4_cast(Qz);*/
 
         pc.model = glm::scale(pc.model, model.model->scale);
+
+        pc.normal = glm::transpose(glm::inverse(pc.model));
 
         cmd.pushConstants<PushConstants>(layout, vk::ShaderStageFlagBits::eVertex, 0, {pc});
 
