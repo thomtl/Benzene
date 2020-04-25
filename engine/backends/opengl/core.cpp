@@ -152,7 +152,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
            float specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), 32);
            vec3 specular = specularStrength * specularIntensity * lightColour;
            
-           vec3 result = (ambient + diffuse + specular) * (inColour.xyz);// ;
+           vec3 result = (ambient + diffuse + specular) * (inColour.xyz * texture(textureSampler, inUv).xyz);// ;
            fragColour = vec4(texture(textureSampler, inUv).xyz * (inColour.xyz), 1.0);
            fragColour = vec4(result, 1.0);
         })");

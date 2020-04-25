@@ -4,6 +4,7 @@ struct GLFWwindow; // Forward Decl
 
 #include "../libs/imgui/imgui.h"
 #include "../libs/stb/stb_image.h"
+#include "../libs/tinyobjloader/tinyobjloader.h"
 
 #include <functional>
 #include <memory>
@@ -20,15 +21,22 @@ struct GLFWwindow; // Forward Decl
 #endif
 
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+#define GLM_ENABLE_EXPERIMENTAL
 #include <glm/glm.hpp>
+#include <glm/gtx/hash.hpp>
 
 
 namespace benzene
 {
     struct Mesh {
+        static Mesh load_from_file(const std::string& folder, const std::string& file);
         struct Vertex {
             glm::vec3 pos, colour, normal;
             glm::vec2 uv;
+
+            bool operator==(const Vertex& other) const {
+                return (pos == other.pos) && (colour == other.colour) && (normal == other.normal) && (uv == other.uv);
+            }
         };
 
         std::vector<Vertex> vertices;
@@ -107,3 +115,20 @@ namespace benzene
         std::unordered_map<ModelId, Model*> render_models;
     };
 } // namespace benzene
+
+namespace std {
+    template<>
+    struct hash<benzene::Mesh::Vertex> {
+        size_t operator()(benzene::Mesh::Vertex const& vertex) const {
+            auto combine = []<typename T>(size_t& seed, const T a){
+                seed ^= hash<T>()(a) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
+            };
+            size_t seed = 0;
+            combine(seed, vertex.pos);
+            combine(seed, vertex.colour);
+            combine(seed, vertex.normal);
+            combine(seed, vertex.uv);
+            return seed;
+        }
+    };
+}

@@ -54,9 +54,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
     std::vector<uint32_t> raw_indices{};
     
-    for(size_t i = 0; i < raw_vertices.size(); i++){
+    for(size_t i = 0; i < raw_vertices.size(); i++)
         raw_indices.push_back(i);
-    }
 
     benzene::Mesh mesh{};
     mesh.indices = raw_indices;
@@ -68,14 +67,14 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     model.scale = {1, 1, 1};
     model.texture = benzene::Texture::load_from_file("../engine/resources/sample_texture.jpg");
 
-    //benzene::Model model2{};
-    //model2.mesh = benzene::Mesh::load_from_file("../engine/resources/rungholt/rungholt.obj", "../engine/resources/rungholt");//mesh;
-    //model2.pos = {0, 0, 0};
-    //model2.scale = {1, 1, 1};
-    //model2.texture = benzene::Texture::load_from_file("../engine/resources/rungholt/rungholt.jpg");
+    benzene::Model model2{};
+    model2.mesh = benzene::Mesh::load_from_file("../engine/resources/", "chalet.obj");
+    model2.pos = {0, 0, 0};
+    model2.scale = {1, 1, 1};
+    model2.texture = benzene::Texture::load_from_file("../engine/resources/chalet.jpg");
 
     engine.add_model(&model);
-    //engine.add_model(&model2);
+    engine.add_model(&model2);
 
     engine.run([&](benzene::FrameData& data){
         ImGui::Begin("Test");
@@ -85,10 +84,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
         ImGui::SliderFloat3("Rotation 1: ", &model.rotation.x, 0, 360);
         ImGui::SliderFloat3("Scale 1: ", &model.scale.x, 1, 5);
 
-        //ImGui::TextUnformatted("Model 2\n");
-        //ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -500, 500);
-        //ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
-        //ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);
+        ImGui::TextUnformatted("Model 2\n");
+        ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -5, 5);
+        ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
+        ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);
 
         ImGui::End();
 

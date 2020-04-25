@@ -81,6 +81,21 @@ namespace benzene::opengl
                 throw std::runtime_error("benzene/opengl: Failed to compile shader program");
             }
 
+            glValidateProgram(handle);
+            glGetProgramiv(handle, GL_VALIDATE_STATUS, &success);
+            if(success == GL_FALSE){
+                GLsizei size;
+                glGetProgramiv(handle, GL_INFO_LOG_LENGTH, &size);
+
+                std::string str{};
+                str.resize(size);
+
+                glGetProgramInfoLog(handle, size, NULL, str.data());
+                print("benzene/opengl: Failed to validate shader program {:s}\n", str);
+
+                throw std::runtime_error("benzene/opengl: Failed to validate shader program");
+            }
+
             for(auto& shader : shaders)
                 shader.clean(); // Not needed after this
         }

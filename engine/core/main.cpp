@@ -35,6 +35,100 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
     return tex;
 }
 
+benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std::string& file){
+    assert(folder[folder.size() - 1] == '/');
+    assert(file[0] != '/');
+    const std::string file_path = folder + file;
+
+    tinyobj::attrib_t attrib{};
+    std::vector<tinyobj::shape_t> shapes{};
+    std::vector<tinyobj::material_t> materials{};
+    std::string warning{}, error{};
+    
+    if(!tinyobj::LoadObj(&attrib, &shapes, &materials, &warning, &error, file_path.c_str(), folder.c_str(), true)){
+        print("benzene/Mesh: Failed to load object from {:s}, warning: {:s}, error: {:s}n\n", file_path, warning, error);
+        throw std::runtime_error("benzene/Mesh: Failed to load object");
+    }
+    
+    bool manually_calculate_surface_normals = false;
+    if(attrib.normals.size() == 0)
+        manually_calculate_surface_normals = true;//throw std::runtime_error("benzene/Model: Tried to load model with no normal vectors\n");
+    
+    if(attrib.texcoords.size() == 0)
+        throw std::runtime_error("benzene/Model: Tried to load model with no uv's\n");
+
+    Mesh mesh{};
+
+    std::unordered_map<Vertex, uint32_t> unique_vertices{};
+    for(const auto& shape : shapes){
+        for(const auto& index : shape.mesh.indices){
+            Mesh::Vertex vertex{};
+
+            vertex.pos = {
+                attrib.vertices[3 * index.vertex_index],
+                attrib.vertices[3 * index.vertex_index + 1],
+                attrib.vertices[3 * index.vertex_index + 2]
+            };
+
+            vertex.uv = {
+                attrib.texcoords[2 * index.texcoord_index],
+                attrib.texcoords[2 * index.texcoord_index + 1]
+            };
+
+            if(attrib.colors.size() == attrib.vertices.size())
+                vertex.colour = glm::vec3{attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1], attrib.colors[3 * index.vertex_index + 2]};
+            else
+                vertex.colour = glm::vec3{1.0f, 1.0f, 1.0f};
+
+            if(!manually_calculate_surface_normals){
+                vertex.normal = {
+                    attrib.normals[3 * index.normal_index],
+                    attrib.normals[3 * index.normal_index + 1],
+                    attrib.normals[3 * index.normal_index + 2]
+                };
+
+                if(unique_vertices.count(vertex) == 0){
+                    unique_vertices[vertex] = mesh.vertices.size();
+                    mesh.vertices.push_back(vertex);
+                }
+                mesh.indices.push_back(unique_vertices[vertex]);
+            } else { // If we need to manually calculate normals we can't use share vertices like this, since the normals might differ
+                mesh.vertices.push_back(vertex);
+                mesh.indices.push_back(mesh.indices.size());
+            }    
+        }
+    }
+
+    if(manually_calculate_surface_normals){
+        assert((mesh.indices.size() % 3) == 0);
+
+        for(size_t i = 0; i < mesh.indices.size(); i += 3){
+            auto& v1 = mesh.vertices[i];
+            auto& v2 = mesh.vertices[i + 1];
+            auto& v3 = mesh.vertices[i + 2];
+
+            // https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal#Algorithm
+            auto U = v2.pos - v1.pos;
+            auto V = v3.pos - v1.pos;
+
+            auto normal_x = (U.y * V.z) - (U.z * V.y);
+            auto normal_y = (U.z * V.x) - (U.x * V.z);
+            auto normal_z = (U.x * V.y) - (U.y * V.x);
+
+            
+
+            auto normal = glm::normalize(glm::vec3{normal_x, normal_y, normal_z});
+
+            v1.normal = normal;
+            v2.normal = normal;
+            v3.normal = normal;
+        }
+    }
+
+    return mesh;
+}
+//#include <GLFW/glfw3.h>
+
 benzene::Instance::Instance(const char* name, size_t width, size_t height): width{width}, height{height} {
     print("benzene: Starting\n");
 
