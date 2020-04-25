@@ -28,7 +28,7 @@ namespace benzene::opengl
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
             glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-            //glGenerateMipmap(GL_TEXTURE_2D);
+            glGenerateMipmap(GL_TEXTURE_2D);
         }
 
         uint32_t operator()(){
@@ -50,15 +50,17 @@ namespace benzene::opengl
     };
 
     struct Vertex {
-        glm::vec3 position, colour;
+        glm::vec3 position, colour, normal;
         glm::vec2 uv;
     };
 
     class Model {
         public:
-        Model(): vao{0}, vbo{}, ebo{} {}
+        Model(): vao{0}, vbo{0}, ebo{0} {}
         Model(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indicies, benzene::Texture& tex, Program& program): tex{tex}, program{&program}, n_indicies{indicies.size()} {
             glGenVertexArrays(1, &vao);
+            glBindVertexArray(vao);
+
 
             glGenBuffers(1, &vbo);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -68,19 +70,18 @@ namespace benzene::opengl
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
             glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * indicies.size(), indicies.data(), GL_STATIC_DRAW);
             
-            glBindVertexArray(vao);
+            auto enable_vertex_attribute = [&program](const std::string& name, size_t n, uintptr_t offset){
+                auto location = program.get_vector_attrib_location(name);
+                assert(location != -1);
 
-            auto position_loc = program.get_vector_attrib_location("inPosition");
-            glVertexAttribPointer(position_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, position));
-            glEnableVertexAttribArray(position_loc);
+                glEnableVertexAttribArray(location);
+                glVertexAttribPointer(location, n, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offset);
+            };
 
-            auto colour_loc = program.get_vector_attrib_location("inColour");
-            glVertexAttribPointer(colour_loc, 3, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, colour));
-            glEnableVertexAttribArray(colour_loc);
-
-            auto uv_loc = program.get_vector_attrib_location("inUv");
-            glVertexAttribPointer(uv_loc, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offsetof(Vertex, uv));
-            glEnableVertexAttribArray(uv_loc);
+            enable_vertex_attribute("inPosition", 3, offsetof(Vertex, position));
+            enable_vertex_attribute("inColour", 3, offsetof(Vertex, colour));
+            enable_vertex_attribute("inNormal", 3, offsetof(Vertex, normal));
+            enable_vertex_attribute("inUv", 2, offsetof(Vertex, uv));
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
@@ -90,7 +91,6 @@ namespace benzene::opengl
 
         void bind(){
             tex.bind(0);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
             glBindVertexArray(vao);
         }
 

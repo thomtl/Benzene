@@ -100,40 +100,70 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 
     //glLineWidth(2.0f);
 
-    prog.add_shader(GL_VERTEX_SHADER, ""
-        "#version 420 core\n"
-        "uniform mat4 model;\n"
-        "uniform mat4 view;\n"
-        "uniform mat4 projection;\n"
-        "\n"
-        "layout (location = 0) in vec3 inPosition;\n"
-        "layout (location = 1) in vec3 inColour;\n"
-        "layout (location = 2) in vec2 inUv;\n"
-        "\n"
-        "layout (location = 0) out vec3 outColour;\n"
-        "layout (location = 1) out vec2 outUv;\n"
-        "void main() {\n"
-        "   gl_Position = projection * view * model * vec4(inPosition.xyz, 1.0);\n"
-        "   outColour = inColour;\n"
-        "   outUv = inUv;\n"
-        "}\n");
+    prog.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
+        uniform mat4 model;
+        uniform mat4 view;
+        uniform mat4 projection;
+        uniform mat3 normalMatrix;
+        
+        layout (location = 0) in vec3 inPosition;
+        layout (location = 1) in vec3 inColour;
+        layout (location = 2) in vec3 inNormal;
+        layout (location = 3) in vec2 inUv;
+        
+        layout (location = 0) out vec3 outWorldPosition;
+        layout (location = 1) out vec3 outColour;
+        layout (location = 2) out vec3 outNormal;
+        layout (location = 3) out vec2 outUv;
+        void main() {
+           gl_Position = projection * view * model * vec4(inPosition.xyz, 1.0);
+           outWorldPosition = vec3(model * vec4(inPosition.xyz, 1.0));
+           outColour = inColour;
+           outUv = inUv;
+           outNormal = normalMatrix * inNormal.xyz;
+        })");
 
-    prog.add_shader(GL_FRAGMENT_SHADER, ""
-        "#version 420 core\n"
-        "uniform sampler2D textureSampler;\n"
-        "\n"
-        "layout (location = 0) in vec3 inColour;\n"
-        "layout (location = 1) in vec2 inUv;\n"
-        "\n"
-        "out vec4 fragColour;\n"
-        "void main() {\n"
-        "   fragColour = texture(textureSampler, inUv) * vec4(inColour, 1.0);\n"
-        "}\n");
+    prog.add_shader(GL_FRAGMENT_SHADER, R"(#version 420 core
+        uniform sampler2D textureSampler;
+        uniform vec3 cameraPosition;
+        
+        layout (location = 0) in vec3 inWorldPosition;
+        layout (location = 1) in vec3 inColour;
+        layout (location = 2) in vec3 inNormal;
+        layout (location = 3) in vec2 inUv;
+        
+        const vec3 lightColour = vec3(1.0, 1.0, 1);
+        const vec3 lightPosition = vec3(500.0, 200.0, 300.0);//1.2, 1.0, 2.0);
+        const float ambientStrength = 0.1;
+        const float specularStrength = 0.5;
+        
+        out vec4 fragColour;
+        void main() {
+           vec3 normal = normalize(inNormal);
+           vec3 lightDir = normalize(lightPosition - inWorldPosition);
+           vec3 cameraDir = normalize(cameraPosition - inWorldPosition);
+           
+           vec3 ambient = lightColour * ambientStrength;
+           
+           float diffuseIntensity = max(dot(normal, lightDir), 0.0);
+           vec3 diffuse = lightColour * diffuseIntensity;
+
+           vec3 reflectDir = reflect(-lightDir, normal);
+           float specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), 32);
+           vec3 specular = specularStrength * specularIntensity * lightColour;
+           
+           vec3 result = (ambient + diffuse + specular) * (inColour.xyz);// ;
+           fragColour = vec4(texture(textureSampler, inUv).xyz * (inColour.xyz), 1.0);
+           fragColour = vec4(result, 1.0);
+        })");
 
     prog.compile();
     prog.use();
-    prog.set_uniform("view", glm::lookAt(glm::vec3{2.0f, 2.0f, 2.0f}, glm::vec3{0.0f, 0.0f, 0.0f}, glm::vec3{0.0f, 1.0f, 0.0f}));
-    prog.set_uniform("projection", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
+
+    auto cameraPosition = glm::vec3{3.0f, 3.0f, 3.0f};
+    prog.set_uniform("view", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
+    prog.set_uniform("projection", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+    prog.set_uniform("cameraPosition", cameraPosition);
 
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -175,14 +205,11 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
             auto& item = internal_vertices.emplace_back();
             item.position = vertex.pos;
             item.colour = vertex.colour;
+            item.normal = vertex.normal;
             item.uv = vertex.uv;
         }
 
-        std::vector<uint32_t> internal_indicies{};
-        for(const auto index : model->mesh.indices)
-            internal_indicies.push_back(index);
-
-        opengl::Model item{internal_vertices, internal_indicies, model->texture, prog};
+        opengl::Model item{internal_vertices, model->mesh.indices, model->texture, prog};
         item.model = model;
 
         internal_models[id] = std::move(item);
@@ -190,13 +217,15 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
 
     for(auto& [id, draw] : internal_models){
         glm::mat4 model = glm::translate(glm::mat4{1.0f}, draw.model->pos);
-        model = glm::rotate(model, glm::radians(draw.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
         model = glm::rotate(model, glm::radians(draw.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
         model = glm::rotate(model, glm::radians(draw.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+        model = glm::rotate(model, glm::radians(draw.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+
         model = glm::scale(model, draw.model->scale);
     
         prog.use();
         prog.set_uniform("model", model);
+        prog.set_uniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(model))));
         prog.set_uniform("textureSampler", 0);
         draw.draw();
     }

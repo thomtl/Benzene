@@ -90,6 +90,12 @@ namespace benzene::opengl
             glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
         }
 
+        void set_uniform(const std::string& name, glm::mat3 matrix){
+            auto loc = glGetUniformLocation(handle, name.c_str());
+            glUniformMatrix3fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
+        }
+
+
         void set_uniform(const std::string& name, int i){
             auto loc = glGetUniformLocation(handle, name.c_str());
             glUniform1i(loc, i);
@@ -100,8 +106,21 @@ namespace benzene::opengl
             glUniform2f(loc, vec.x, vec.y);
         }
 
-        uint32_t get_vector_attrib_location(const std::string& name){
-            return glGetAttribLocation(handle, name.c_str());
+        void set_uniform(const std::string& name, glm::vec3 vec){
+            auto loc = glGetUniformLocation(handle, name.c_str());
+            glUniform3f(loc, vec.x, vec.y, vec.z);
+        }
+
+        void set_uniform(const std::string& name, glm::vec4 vec){
+            auto loc = glGetUniformLocation(handle, name.c_str());
+            glUniform4f(loc, vec.x, vec.y, vec.z, vec.w);
+        }
+
+        int32_t get_vector_attrib_location(const std::string& name){
+            auto ret = (int32_t)glGetAttribLocation(handle, name.c_str());
+            if(ret == -1)
+                print("opengl: \"{:s}\" is not a valid vertex attribute\n", name);
+            return ret;
         }
 
         void clean(){

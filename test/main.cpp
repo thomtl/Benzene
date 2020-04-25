@@ -7,15 +7,56 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     //engine.get_backend().set_fps_cap(true, 60);
 
     std::vector<benzene::Mesh::Vertex> raw_vertices = {
-        {{-0.5f, -0.5f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}},
-        {{0.5f, -0.5f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}},
-        {{0.5f, 0.5f, 0.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}},
-        {{-0.5f, 0.5f, 0.0f}, {1.0f, 1.0f, 1.0f}, {1.0f, 1.0f}}
+        // Back face
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {0.0f, 0.0f}}, // Bottom-left
+        {{0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {1.0f, 1.0f}}, // top-right
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f}}, // bottom-right         
+        {{0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {1.0f, 1.0f}}, // top-right
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {0.0f, 0.0f}}, // bottom-left
+        {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, -1.0f}, {0.0f, 1.0f}}, // top-left
+        // Front face
+        {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {0.0f, 0.0f}}, // bottom-left
+        {{0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {1.0f, 1.0f}}, // top-right
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {1.0f, 1.0f}}, // top-right
+        {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {0.0f, 1.0f}}, // top-left
+        {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  0.0f, 1.0f}, {0.0f, 0.0f}}, // bottom-left
+        // Left face
+        {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
+        {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
+        {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
+        {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
+        // Right face
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
+        {{0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right         
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
+        {{0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {1.0f,  0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left     
+        // Bottom face
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
+        {{0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
+        {{0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
+        {{0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
+        {{-0.5f, -0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
+        {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
+        // Top face
+        {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {1.0f, 1.0f}}, // top-right     
+        {{0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{-0.5f,  0.5f, -0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
+        {{-0.5f,  0.5f,  0.5f}, {1.0f, 0.5f, 0.31f}, {0.0f,  1.0f, 0.0f}, {0.0f, 0.0f}}  // bottom-left
     };
+    assert((raw_vertices.size() % 3) == 0);
+
+    std::vector<uint32_t> raw_indices{};
     
-    std::vector<uint16_t> raw_indices = {
-        0, 1, 2, 2, 3, 0
-    };
+    for(size_t i = 0; i < raw_vertices.size(); i++){
+        raw_indices.push_back(i);
+    }
 
     benzene::Mesh mesh{};
     mesh.indices = raw_indices;
@@ -24,17 +65,17 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     benzene::Model model{};
     model.mesh = mesh;
     model.pos = {0, 0, 0.512};
-    model.scale = {1, 1, 0};
+    model.scale = {1, 1, 1};
     model.texture = benzene::Texture::load_from_file("../engine/resources/sample_texture.jpg");
 
-    benzene::Model model2{};
-    model2.mesh = mesh;
-    model2.pos = {0, 0, 0};
-    model2.scale = {1, 1, 0};
-    model2.texture = benzene::Texture::load_from_file("../engine/resources/wall.jpg");
+    //benzene::Model model2{};
+    //model2.mesh = benzene::Mesh::load_from_file("../engine/resources/rungholt/rungholt.obj", "../engine/resources/rungholt");//mesh;
+    //model2.pos = {0, 0, 0};
+    //model2.scale = {1, 1, 1};
+    //model2.texture = benzene::Texture::load_from_file("../engine/resources/rungholt/rungholt.jpg");
 
     engine.add_model(&model);
-    engine.add_model(&model2);
+    //engine.add_model(&model2);
 
     engine.run([&](benzene::FrameData& data){
         ImGui::Begin("Test");
@@ -44,10 +85,10 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
         ImGui::SliderFloat3("Rotation 1: ", &model.rotation.x, 0, 360);
         ImGui::SliderFloat3("Scale 1: ", &model.scale.x, 1, 5);
 
-        ImGui::TextUnformatted("Model 2\n");
-        ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -5, 5);
-        ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
-        ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);
+        //ImGui::TextUnformatted("Model 2\n");
+        //ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -500, 500);
+        //ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
+        //ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);
 
         ImGui::End();
 

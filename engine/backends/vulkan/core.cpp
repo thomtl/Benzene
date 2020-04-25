@@ -680,7 +680,7 @@ void Backend::build_command_buffer(size_t i){
             cmd.bindDescriptorSets(vk::PipelineBindPoint::eGraphics, model.pipeline->get_layout(), 0, {descriptor_sets[i]}, {});
         
             cmd.bindVertexBuffers(0, {model.vertices.handle()}, {0});
-            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint16);
+            cmd.bindIndexBuffer(model.indices.handle(), 0, vk::IndexType::eUint32);
 
             if constexpr (enable_wireframe_outline)
                 draw_model(id, model, model.wireframe_pipeline->get_layout());

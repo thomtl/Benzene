@@ -102,7 +102,7 @@ namespace benzene::vulkan
     };
 
     using VertexBuffer = BouncedBuffer<Vertex>;
-    using IndexBuffer = BouncedBuffer<uint16_t>;
+    using IndexBuffer = BouncedBuffer<uint32_t>;
 
     class RenderPass {
         public:

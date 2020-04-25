@@ -27,12 +27,12 @@ namespace benzene
 {
     struct Mesh {
         struct Vertex {
-            glm::vec3 pos, colour;
+            glm::vec3 pos, colour, normal;
             glm::vec2 uv;
         };
 
         std::vector<Vertex> vertices;
-        std::vector<uint16_t> indices;
+        std::vector<uint32_t> indices;
     };
 
     struct Texture {
