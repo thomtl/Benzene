@@ -50,16 +50,14 @@ benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std
         throw std::runtime_error("benzene/Mesh: Failed to load object");
     }
     
-    bool manually_calculate_surface_normals = false;
+    bool have_surface_normals = true;
     if(attrib.normals.size() == 0)
-        manually_calculate_surface_normals = true;//throw std::runtime_error("benzene/Model: Tried to load model with no normal vectors\n");
+        have_surface_normals = false;//throw std::runtime_error("benzene/Model: Tried to load model with no normal vectors\n");
     
     if(attrib.texcoords.size() == 0)
         throw std::runtime_error("benzene/Model: Tried to load model with no uv's\n");
-
-    Mesh mesh{};
-
-    std::unordered_map<Vertex, uint32_t> unique_vertices{};
+    
+    std::vector<Vertex> vertices;
     for(const auto& shape : shapes){
         for(const auto& index : shape.mesh.indices){
             Mesh::Vertex vertex{};
@@ -80,49 +78,46 @@ benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std
             else
                 vertex.colour = glm::vec3{1.0f, 1.0f, 1.0f};
 
-            if(!manually_calculate_surface_normals){
+            if(have_surface_normals){
                 vertex.normal = {
                     attrib.normals[3 * index.normal_index],
                     attrib.normals[3 * index.normal_index + 1],
                     attrib.normals[3 * index.normal_index + 2]
-                };
+                };                
+            }
 
-                if(unique_vertices.count(vertex) == 0){
-                    unique_vertices[vertex] = mesh.vertices.size();
-                    mesh.vertices.push_back(vertex);
-                }
-                mesh.indices.push_back(unique_vertices[vertex]);
-            } else { // If we need to manually calculate normals we can't use share vertices like this, since the normals might differ
-                mesh.vertices.push_back(vertex);
-                mesh.indices.push_back(mesh.indices.size());
-            }    
+            vertices.push_back(vertex);
         }
     }
 
-    if(manually_calculate_surface_normals){
-        assert((mesh.indices.size() % 3) == 0);
+    if(!have_surface_normals){
+        assert((vertices.size() % 3) == 0);
 
-        for(size_t i = 0; i < mesh.indices.size(); i += 3){
-            auto& v1 = mesh.vertices[i];
-            auto& v2 = mesh.vertices[i + 1];
-            auto& v3 = mesh.vertices[i + 2];
+        for(size_t i = 0; i < vertices.size(); i += 3){
+            auto& v1 = vertices[i];
+            auto& v2 = vertices[i + 1];
+            auto& v3 = vertices[i + 2];
 
             // https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal#Algorithm
             auto U = v2.pos - v1.pos;
             auto V = v3.pos - v1.pos;
 
-            auto normal_x = (U.y * V.z) - (U.z * V.y);
-            auto normal_y = (U.z * V.x) - (U.x * V.z);
-            auto normal_z = (U.x * V.y) - (U.y * V.x);
-
-            
-
-            auto normal = glm::normalize(glm::vec3{normal_x, normal_y, normal_z});
+            auto normal = glm::normalize(glm::cross(U, V));
 
             v1.normal = normal;
             v2.normal = normal;
             v3.normal = normal;
         }
+    }
+
+    Mesh mesh{};
+    std::unordered_map<Vertex, uint32_t> unique_vertices{};
+    for(auto& vertex : vertices){
+        if(unique_vertices.count(vertex) == 0){
+            unique_vertices[vertex] = mesh.vertices.size();
+            mesh.vertices.push_back(vertex);
+        }
+        mesh.indices.push_back(unique_vertices[vertex]);
     }
 
     return mesh;
