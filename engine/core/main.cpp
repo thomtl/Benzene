@@ -111,7 +111,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
 }
 
 benzene::Instance::~Instance(){
-    this->backend.~unique_ptr();
+    delete this->backend.release();
 
     glfwDestroyWindow(window);
 

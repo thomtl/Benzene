@@ -54,6 +54,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
     last_frame_times = {};
     frame_counter = 0;
     fps = 0;
+    fps_cap_enabled = false;
     glfwSwapInterval(0); // Remove 60 FPS Cap
     print("opengl: Starting OpenGL Backend\n");
 
