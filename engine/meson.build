@@ -8,5 +8,5 @@ imgui_dep = static_library('imgui', files('libs/imgui/imgui_demo.cpp', 'libs/img
 stb_dep = static_library('stb', files('libs/stb/stb_image.cpp'))
 tinyobjloader_dep = static_library('tinyobjloader', files('libs/tinyobjloader/tinyobjloader.cpp'))
 
-subdir('backends/vulkan')
+#subdir('backends/vulkan')
 subdir('backends/opengl')
