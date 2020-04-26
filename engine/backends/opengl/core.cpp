@@ -98,6 +98,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_MULTISAMPLE);
+	glEnable(GL_FRAMEBUFFER_SRGB); // Enable automatic gamma-correction
+
 
 	//glLineWidth(2.0f);
 

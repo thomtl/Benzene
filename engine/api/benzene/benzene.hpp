@@ -29,7 +29,11 @@ struct GLFWwindow; // Forward Decl
 namespace benzene
 {
     struct Texture {
-        static Texture load_from_file(const std::string& filename, const std::string& shader_name);
+        enum class Gamut {
+            Linear,
+            Srgb
+        };
+        static Texture load_from_file(const std::string& filename, const std::string& shader_name, Gamut gamut);
 
         const std::vector<uint8_t>& bytes() const {
             return data;
@@ -43,10 +47,15 @@ namespace benzene
             return shader_name;
         }
 
+        Gamut get_gamut() const {
+            return gamut;
+        }
+
         private:
         std::vector<uint8_t> data;
         int width, height, channels;
         std::string shader_name;
+        Gamut gamut;
     };
 
     struct Mesh {

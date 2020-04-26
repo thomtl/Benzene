@@ -60,8 +60,8 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     benzene::Mesh mesh{};
     mesh.indices = raw_indices;
     mesh.vertices = raw_vertices;
-    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_diffuse.png", "diffuse"));
-    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_specular.png", "specular"));
+    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_diffuse.png", "diffuse", benzene::Texture::Gamut::Srgb));
+    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_specular.png", "specular", benzene::Texture::Gamut::Linear));
     mesh.material.shininess = 64.0f;
     mesh.material.specular = glm::vec3{1.0f, 1.0f, 1.0f};
 

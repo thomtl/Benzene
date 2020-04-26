@@ -16,8 +16,8 @@ namespace benzene::opengl
     class Texture {
         public:
         Texture(): handle{0}, shader_name{} {}
-        Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data(), tex.get_shader_name()} {}
-        Texture(size_t width, size_t height, const uint8_t* data, const std::string& shader_name): shader_name{shader_name} {
+        Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data(), tex.get_shader_name(), tex.get_gamut()} {}
+        Texture(size_t width, size_t height, const uint8_t* data, const std::string& shader_name, benzene::Texture::Gamut gamut): shader_name{shader_name} {
             glGenTextures(1, &handle);
 
             glBindTexture(GL_TEXTURE_2D, handle);
@@ -27,7 +27,7 @@ namespace benzene::opengl
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
             glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-            glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
+            glTexImage2D(GL_TEXTURE_2D, 0, (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB : GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
             glGenerateMipmap(GL_TEXTURE_2D);
         }
 

@@ -11,7 +11,7 @@
 
 #include "format.hpp"
 
-benzene::Texture benzene::Texture::load_from_file(const std::string& filename, const std::string& shader_name){
+benzene::Texture benzene::Texture::load_from_file(const std::string& filename, const std::string& shader_name, benzene::Texture::Gamut gamut){
     int width, height, channels;
     stbi_set_flip_vertically_on_load(true);
 
@@ -26,6 +26,7 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename, c
     tex.width = width;
     tex.height = height;
     tex.channels = channels;
+    tex.gamut = gamut;
 
     size_t size = width * height * 4;
     tex.data.resize(size);
