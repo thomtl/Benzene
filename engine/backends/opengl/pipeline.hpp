@@ -11,7 +11,7 @@
 #include <vector>
 
 #include <glm/gtc/type_ptr.hpp>
-
+#include <glm/gtx/string_cast.hpp>
 #include <iostream>
 
 namespace benzene::opengl
@@ -106,14 +106,29 @@ namespace benzene::opengl
         }
 
         void set_uniform(const std::string& name, glm::mat3 matrix){
+            /*
+            For some reason when using `GLM_FORCE_DEFAULT_ALIGNED_GENTYPES` `glm::value_ptr` doesn't work on `glm::mat3`s and outputs corrupted data
+            so we create our own temporary array
+            see: https://stackoverflow.com/questions/61447393/glmvalue-ptr-broken-for-glmmat3 for future reference
+            */
+            float tmp[3][3] = {};
+            for(int i = 0; i < 3; i++)
+                for(int j = 0; j < 3; j++)
+                    tmp[i][j] = matrix[i][j];
+            
             auto loc = this->get_uniform_location(name);
-            glUniformMatrix3fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
+            glUniformMatrix3fv(loc, 1, GL_FALSE, (const GLfloat*)tmp);
         }
 
 
         void set_uniform(const std::string& name, int i){
             auto loc = this->get_uniform_location(name);
             glUniform1i(loc, i);
+        }
+
+        void set_uniform(const std::string& name, float f){
+            auto loc = this->get_uniform_location(name);
+            glUniform1f(loc, f);
         }
 
         void set_uniform(const std::string& name, glm::vec2 vec){

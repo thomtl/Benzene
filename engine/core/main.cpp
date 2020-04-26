@@ -74,11 +74,6 @@ void benzene::Model::load_mesh_data_from_file(const std::string& folder, const s
                 attrib.texcoords[2 * index.texcoord_index + 1]
             };
 
-            if(attrib.colors.size() == attrib.vertices.size())
-                vertex.colour = glm::vec3{attrib.colors[3 * index.vertex_index], attrib.colors[3 * index.vertex_index + 1], attrib.colors[3 * index.vertex_index + 2]};
-            else
-                vertex.colour = glm::vec3{1.0f, 1.0f, 1.0f};
-
             if(have_surface_normals){
                 vertex.normal = {
                     attrib.normals[3 * index.normal_index],

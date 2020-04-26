@@ -51,17 +51,23 @@ namespace benzene
 
     struct Mesh {
         struct Vertex {
-            glm::vec3 pos, colour, normal;
+            glm::vec3 pos, normal;
             glm::vec2 uv;
 
             bool operator==(const Vertex& other) const {
-                return (pos == other.pos) && (colour == other.colour) && (normal == other.normal) && (uv == other.uv);
+                return (pos == other.pos) && (normal == other.normal) && (uv == other.uv);
             }
+        };
+
+        struct Material {
+            glm::vec3 specular;
+            float shininess;
         };
 
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         std::vector<Texture> textures;
+        Material material;
     };
 
 
@@ -146,7 +152,6 @@ namespace std {
             };
             size_t seed = 0;
             combine(seed, vertex.pos);
-            combine(seed, vertex.colour);
             combine(seed, vertex.normal);
             combine(seed, vertex.uv);
             return seed;

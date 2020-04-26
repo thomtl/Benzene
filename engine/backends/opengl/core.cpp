@@ -9,9 +9,6 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum
 	static std::mutex debug_lock{};
 	std::lock_guard guard{debug_lock};
 
-	if(id == 1 || id == 2)
-		return;
-
 	print("--------------------------------\n");
 	print("Debug message ({:d}): {:s}\n", (uint64_t)id, (const char*)message);
 
@@ -111,18 +108,15 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		uniform mat3 normalMatrix;
 		
 		layout (location = 0) in vec3 inPosition;
-		layout (location = 1) in vec3 inColour;
-		layout (location = 2) in vec3 inNormal;
-		layout (location = 3) in vec2 inUv;
+		layout (location = 1) in vec3 inNormal;
+		layout (location = 2) in vec2 inUv;
 		
 		layout (location = 0) out vec3 outWorldPosition;
-		layout (location = 1) out vec3 outColour;
-		layout (location = 2) out vec3 outNormal;
-		layout (location = 3) out vec2 outUv;
+		layout (location = 1) out vec3 outNormal;
+		layout (location = 2) out vec2 outUv;
 		void main() {
 		   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
 		   outWorldPosition = vec3(modelMatrix * vec4(inPosition.xyz, 1.0));
-		   outColour = inColour;
 		   outUv = inUv;
 		   outNormal = normalMatrix * inNormal.xyz;
 		})");
@@ -130,54 +124,64 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	prog.add_shader(GL_FRAGMENT_SHADER, R"(#version 420 core
 		struct Material {
 			sampler2D diffuse;
+			sampler2D specular;
+			float shininess;
 		};
+
+		struct Light {
+			vec3 position;
+			vec3 ambient;
+			vec3 diffuse;
+			vec3 specular;
+		};
+
+		uniform Light light;
 		uniform Material material;
 		uniform vec3 cameraPosition;
 		
 		layout (location = 0) in vec3 inWorldPosition;
-		layout (location = 1) in vec3 inColour;
-		layout (location = 2) in vec3 inNormal;
-		layout (location = 3) in vec2 inUv;
+		layout (location = 1) in vec3 inNormal;
+		layout (location = 2) in vec2 inUv;
 		
-		const vec3 lightColour = vec3(1.0, 1.0, 1);
-		const vec3 lightPosition = vec3(500.0, 200.0, 300.0);//1.2, 1.0, 2.0);
-		const float ambientStrength = 0.1;
-		const float specularStrength = 0.5;
-		const bool blinn = true;
+		const bool blinn = false;
 
 		
 		out vec4 fragColour;
 		void main() {
 		   	vec3 normal = normalize(inNormal);
-		   	vec3 lightDir = normalize(lightPosition - inWorldPosition);
+		   	vec3 lightDir = normalize(light.position - inWorldPosition);
 		   	vec3 cameraDir = normalize(cameraPosition - inWorldPosition);
 		   
-		   	vec3 ambient = lightColour * ambientStrength;
+		   	vec3 ambient = light.ambient * texture(material.diffuse, inUv).rgb;
 		   
 		   	float diffuseIntensity = max(dot(normal, lightDir), 0.0);
-		   	vec3 diffuse = lightColour * diffuseIntensity;
+		   	vec3 diffuse = light.diffuse * diffuseIntensity * texture(material.diffuse, inUv).rgb;
 
 			float specularIntensity;
 			if (blinn){
 				vec3 halfwayDir = normalize(lightDir + cameraDir);
-				specularIntensity = pow(max(dot(normal, halfwayDir), 0.0), 32);
+				specularIntensity = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
 			} else {
 				vec3 reflectDir = reflect(-lightDir, normal);
-				specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), 32);
+				specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), material.shininess);
 			}
-			vec3 specular = specularStrength * specularIntensity * lightColour;
+			vec3 specular = light.specular * specularIntensity * texture(material.specular, inUv).rgb;
 		   
-		   	vec3 result = (ambient + diffuse + specular) * (inColour.xyz * texture(material.diffuse, inUv).xyz);
+		   	vec3 result = ambient + diffuse + specular;
 		   	fragColour = vec4(result, 1.0);
 		})");
 
 	prog.compile();
 	prog.use();
 
-	auto cameraPosition = glm::vec3{3.0f, 3.0f, 3.0f};
-	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
+	
 	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
-	prog.set_uniform("cameraPosition", cameraPosition);
+	
+
+	prog.set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
+	prog.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
+	prog.set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
+	prog.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -206,7 +210,7 @@ void Backend::framebuffer_resize_callback(int width, int height){
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
 	auto time_begin = std::chrono::high_resolution_clock::now();
 
-	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// First things first, create state of models that the backend understands
@@ -216,6 +220,11 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
 			internal_models[id] = Model{*model, prog};
 		}
 	}
+
+	prog.use();
+	auto cameraPosition = glm::vec3{3.0f, 3.0f, 0.0f};
+	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
+	prog.set_uniform("cameraPosition", cameraPosition);
 
 	for(const auto& [id, model] : internal_models)
 		model.draw();

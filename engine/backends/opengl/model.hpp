@@ -9,6 +9,8 @@
 
 #include "pipeline.hpp"
 
+#include <glm/gtx/string_cast.hpp>
+
 namespace benzene::opengl
 {
     class Texture {
@@ -56,7 +58,7 @@ namespace benzene::opengl
     class Mesh {
         public:
         Mesh(): vao{0}, vbo{0}, ebo{0} {}
-        Mesh(const benzene::Mesh& api_mesh, Program& program): n_indicies{api_mesh.indices.size()}, program{&program} {
+        Mesh(const benzene::Mesh& api_mesh, Program& program): n_indicies{api_mesh.indices.size()}, program{&program}, api_mesh{&api_mesh} {
             glGenVertexArrays(1, &vao);
             glBindVertexArray(vao);
 
@@ -77,7 +79,6 @@ namespace benzene::opengl
             };
 
             enable_vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
-            enable_vertex_attribute("inColour", 3, offsetof(benzene::Mesh::Vertex, colour));
             enable_vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
             enable_vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
 
@@ -110,6 +111,8 @@ namespace benzene::opengl
                 textures[i].bind(*program, i);
             
             glBindVertexArray(vao);
+
+            program->set_uniform("material.shininess", api_mesh->material.shininess);
         }
 
         uint32_t vao, vbo, ebo;
@@ -117,6 +120,7 @@ namespace benzene::opengl
 
         size_t n_indicies;
         Program* program;
+        const benzene::Mesh* api_mesh;
     };
 
     class Model {
@@ -128,12 +132,13 @@ namespace benzene::opengl
         }
 
         void draw() const {
-            auto model_matrix = glm::translate(glm::mat4{1.0f}, model->pos);
-		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
-		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
-		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
-		    model_matrix = glm::scale(model_matrix, model->scale);
-
+            auto translate = glm::translate(glm::mat4{1.0f}, model->pos);
+		    auto scale = glm::scale(glm::mat4{1.0f}, model->scale);
+            auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
+		    rotate = glm::rotate(rotate, glm::radians(model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+		    rotate = glm::rotate(rotate, glm::radians(model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+            
+            auto model_matrix = scale * translate * rotate;
             auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
 
             program->use();
