@@ -11,7 +11,7 @@
 
 #include "format.hpp"
 
-benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
+benzene::Texture benzene::Texture::load_from_file(const std::string& filename, const std::string& shader_name){
     int width, height, channels;
     stbi_set_flip_vertically_on_load(true);
 
@@ -22,6 +22,7 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
     }
 
     Texture tex{};
+    tex.shader_name = shader_name;
     tex.width = width;
     tex.height = height;
     tex.channels = channels;
@@ -35,7 +36,7 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename){
     return tex;
 }
 
-benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std::string& file){
+void benzene::Model::load_mesh_data_from_file(const std::string& folder, const std::string& file){
     assert(folder[folder.size() - 1] == '/');
     assert(file[0] != '/');
     const std::string file_path = folder + file;
@@ -57,8 +58,8 @@ benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std
     if(attrib.texcoords.size() == 0)
         throw std::runtime_error("benzene/Model: Tried to load model with no uv's\n");
     
-    std::vector<Vertex> vertices;
-    for(const auto& shape : shapes){
+    auto process_mesh = [have_surface_normals, &attrib](const tinyobj::shape_t& shape) -> benzene::Mesh {
+        std::vector<benzene::Mesh::Vertex> vertices{};
         for(const auto& index : shape.mesh.indices){
             Mesh::Vertex vertex{};
 
@@ -88,39 +89,57 @@ benzene::Mesh benzene::Mesh::load_from_file(const std::string& folder, const std
 
             vertices.push_back(vertex);
         }
-    }
 
-    if(!have_surface_normals){
-        assert((vertices.size() % 3) == 0);
+        if(!have_surface_normals){
+            assert((vertices.size() % 3) == 0);
 
-        for(size_t i = 0; i < vertices.size(); i += 3){
-            auto& v1 = vertices[i];
-            auto& v2 = vertices[i + 1];
-            auto& v3 = vertices[i + 2];
+            for(size_t i = 0; i < vertices.size(); i += 3){
+                auto& v1 = vertices[i];
+                auto& v2 = vertices[i + 1];
+                auto& v3 = vertices[i + 2];
 
-            // https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal#Algorithm
-            auto U = v2.pos - v1.pos;
-            auto V = v3.pos - v1.pos;
+                auto calculate_surface_normal = [](glm::vec3 p1, glm::vec3 p2, glm::vec3 p3) -> glm::vec3 {
+                    // https://www.khronos.org/opengl/wiki/Calculating_a_Surface_Normal#Algorithm
+                    auto U = p2 - p1;
+                    auto V = p3 - p1;
 
-            auto normal = glm::normalize(glm::cross(U, V));
+                    return glm::normalize(glm::cross(U, V));
+                };
 
-            v1.normal = normal;
-            v2.normal = normal;
-            v3.normal = normal;
+                auto normal = calculate_surface_normal(v1.pos, v2.pos, v3.pos);
+
+                v1.normal = v2.normal = v3.normal = normal;
+            }
         }
-    }
 
-    Mesh mesh{};
-    std::unordered_map<Vertex, uint32_t> unique_vertices{};
-    for(auto& vertex : vertices){
-        if(unique_vertices.count(vertex) == 0){
-            unique_vertices[vertex] = mesh.vertices.size();
-            mesh.vertices.push_back(vertex);
+        Mesh mesh{};
+        std::unordered_map<benzene::Mesh::Vertex, uint32_t> unique_vertices{};
+        for(auto& vertex : vertices){
+            if(unique_vertices.count(vertex) == 0){
+                unique_vertices[vertex] = mesh.vertices.size();
+                mesh.vertices.push_back(vertex);
+            }
+            mesh.indices.push_back(unique_vertices[vertex]);
         }
-        mesh.indices.push_back(unique_vertices[vertex]);
-    }
 
-    return mesh;
+        if constexpr (true)
+            if(mesh.vertices.size() < vertices.size())
+                print("benzene/Model: Optimized submesh from {:d} vertices to {:d} unique vertices\n", vertices.size(), mesh.vertices.size());
+
+        return mesh;
+    };
+
+    this->meshes.clear();
+
+    for(const auto& shape : shapes)
+        this->meshes.push_back(process_mesh(shape));
+
+    if constexpr (true){
+        size_t tris = 0;
+        for(const auto& mesh : this->meshes)
+            tris += (mesh.indices.size() / 3);
+        print("benzene/Model: Loaded model with {:d} submesh(es) and {:d} triangles\n", this->meshes.size(), tris);
+    }
 }
 //#include <GLFW/glfw3.h>
 

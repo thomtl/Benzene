@@ -78,6 +78,10 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		print("        Renderer: {:s}\n", glGetString(GL_RENDERER));
 		print("        GL Version: {:s}\n", glGetString(GL_VERSION));
 		print("        GLSL Version: {:s}\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
+		GLint msaa_buffers, msaa_samples;
+		glGetIntegerv(GL_SAMPLE_BUFFERS, &msaa_buffers);
+		glGetIntegerv(GL_SAMPLES, &msaa_samples);
+		print("        MSAA: Buffers: {:d}, samples: {:d}\n", msaa_buffers, msaa_samples);
 
 		/*GLint n_extensions;
 		glGetIntegerv(GL_NUM_EXTENSIONS, &n_extensions);
@@ -101,9 +105,9 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	//glLineWidth(2.0f);
 
 	prog.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
-		uniform mat4 model;
-		uniform mat4 view;
-		uniform mat4 projection;
+		uniform mat4 modelMatrix;
+		uniform mat4 viewMatrix;
+		uniform mat4 projectionMatrix;
 		uniform mat3 normalMatrix;
 		
 		layout (location = 0) in vec3 inPosition;
@@ -116,15 +120,18 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		layout (location = 2) out vec3 outNormal;
 		layout (location = 3) out vec2 outUv;
 		void main() {
-		   gl_Position = projection * view * model * vec4(inPosition.xyz, 1.0);
-		   outWorldPosition = vec3(model * vec4(inPosition.xyz, 1.0));
+		   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
+		   outWorldPosition = vec3(modelMatrix * vec4(inPosition.xyz, 1.0));
 		   outColour = inColour;
 		   outUv = inUv;
 		   outNormal = normalMatrix * inNormal.xyz;
 		})");
 
 	prog.add_shader(GL_FRAGMENT_SHADER, R"(#version 420 core
-		uniform sampler2D textureSampler;
+		struct Material {
+			sampler2D diffuse;
+		};
+		uniform Material material;
 		uniform vec3 cameraPosition;
 		
 		layout (location = 0) in vec3 inWorldPosition;
@@ -160,7 +167,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 			}
 			vec3 specular = specularStrength * specularIntensity * lightColour;
 		   
-		   	vec3 result = (ambient + diffuse + specular) * (inColour.xyz * texture(textureSampler, inUv).xyz);
+		   	vec3 result = (ambient + diffuse + specular) * (inColour.xyz * texture(material.diffuse, inUv).xyz);
 		   	fragColour = vec4(result, 1.0);
 		})");
 
@@ -168,8 +175,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	prog.use();
 
 	auto cameraPosition = glm::vec3{3.0f, 3.0f, 3.0f};
-	prog.set_uniform("view", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
-	prog.set_uniform("projection", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
+	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 	prog.set_uniform("cameraPosition", cameraPosition);
 
 	IMGUI_CHECKVERSION();
@@ -193,49 +200,25 @@ Backend::~Backend(){
 void Backend::framebuffer_resize_callback(int width, int height){
 	glViewport(0, 0, width, height);
 	prog.use();
-	prog.set_uniform("projection", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
+	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
 	auto time_begin = std::chrono::high_resolution_clock::now();
+
 	glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	// First things first, create state of models that the backend understands
 	for(auto& [id, model] : models){
-		auto it = internal_models.find(id);
-		if(it != internal_models.end())
-			continue; // Already exists
-
-		std::vector<Vertex> internal_vertices{};
-		for(auto& vertex : model->mesh.vertices){
-			auto& item = internal_vertices.emplace_back();
-			item.position = vertex.pos;
-			item.colour = vertex.colour;
-			item.normal = vertex.normal;
-			item.uv = vertex.uv;
+		if(internal_models.count(id) == 0 || model->is_updated()){
+			internal_models[id].clean();
+			internal_models[id] = Model{*model, prog};
 		}
-
-		opengl::Model item{internal_vertices, model->mesh.indices, model->texture, prog};
-		item.model = model;
-
-		internal_models[id] = std::move(item);
 	}
 
-	for(auto& [id, draw] : internal_models){
-		glm::mat4 model = glm::translate(glm::mat4{1.0f}, draw.model->pos);
-		model = glm::rotate(model, glm::radians(draw.model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
-		model = glm::rotate(model, glm::radians(draw.model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
-		model = glm::rotate(model, glm::radians(draw.model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
-
-		model = glm::scale(model, draw.model->scale);
-	
-		prog.use();
-		prog.set_uniform("model", model);
-		prog.set_uniform("normalMatrix", glm::mat3(glm::transpose(glm::inverse(model))));
-		prog.set_uniform("textureSampler", 0);
-		draw.draw();
-	}
+	for(const auto& [id, model] : internal_models)
+		model.draw();
 
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
@@ -286,8 +269,6 @@ void Backend::draw_debug_window(){
 		max_frame_time = frame_time;
 
 	ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
-
 	ImGui::Text("FPS: %f\n", this->fps);
-
 	ImGui::End();
 }

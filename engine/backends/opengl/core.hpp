@@ -7,7 +7,6 @@
 
 #include <chrono>
 
-
 #include "model.hpp"
 #include "pipeline.hpp"
 
@@ -18,7 +17,7 @@
 template<>
 struct format::formatter<const GLubyte*> {
 	template<typename OutputIt>
-	static void format(format::format_output_it<OutputIt>& it, [[maybe_unused]] format::format_args args, const GLubyte* item){        
+	static void format(format::format_output_it<OutputIt>& it, format::format_args args, const GLubyte* item){        
 		formatter<const char*>::format(it, args, (const char*)item);
     }
 };
@@ -54,6 +53,7 @@ namespace benzene::opengl
         void imgui_update();
         void draw_debug_window();
 
+        #pragma region Handled by ImGui backend
         void mouse_button_callback(int button, bool state){
             (void)button;
             (void)state;
@@ -68,6 +68,8 @@ namespace benzene::opengl
             (void)xoffset;
             (void)yoffset;
         }
+
+        #pragma endregion
 
         void set_fps_cap(bool enabled, size_t fps){
             this->fps_cap_enabled = enabled;

@@ -60,24 +60,32 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     benzene::Mesh mesh{};
     mesh.indices = raw_indices;
     mesh.vertices = raw_vertices;
+    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/sample_texture.jpg", "diffuse"));
 
     benzene::Model model{};
-    model.mesh = mesh;
+    model.meshes.push_back(mesh);
     model.pos = {0, 0, 0.512};
     model.scale = {1, 1, 1};
-    model.texture = benzene::Texture::load_from_file("../engine/resources/sample_texture.jpg");
 
     benzene::Model model2{};
-    model2.mesh = benzene::Mesh::load_from_file("../engine/resources/", "chalet.obj");
+    model2.load_mesh_data_from_file("../engine/resources/", "chalet.obj");
     model2.pos = {0, 0, 0};
     model2.scale = {1, 1, 1};
-    model2.texture = benzene::Texture::load_from_file("../engine/resources/chalet.jpg");
+    for(auto& mesh : model2.meshes)
+        mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/chalet.jpg", "diffuse"));
 
     engine.add_model(&model);
     engine.add_model(&model2);
 
     engine.run([&](benzene::FrameData& data){
         ImGui::Begin("Test");
+
+        if(ImGui::Button("Update")){
+            model2.meshes.clear();
+            model2.meshes.push_back(mesh);
+
+            model2.update();
+        }
 
         ImGui::TextUnformatted("Model 1\n");
         ImGui::SliderFloat3("Position 1: ", &model.pos.x, -5, 5);

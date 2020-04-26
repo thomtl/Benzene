@@ -101,40 +101,42 @@ namespace benzene::opengl
         }
 
         void set_uniform(const std::string& name, glm::mat4 matrix){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
         }
 
         void set_uniform(const std::string& name, glm::mat3 matrix){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniformMatrix3fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
         }
 
 
         void set_uniform(const std::string& name, int i){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniform1i(loc, i);
         }
 
         void set_uniform(const std::string& name, glm::vec2 vec){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniform2f(loc, vec.x, vec.y);
         }
 
         void set_uniform(const std::string& name, glm::vec3 vec){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniform3f(loc, vec.x, vec.y, vec.z);
         }
 
         void set_uniform(const std::string& name, glm::vec4 vec){
-            auto loc = glGetUniformLocation(handle, name.c_str());
+            auto loc = this->get_uniform_location(name);
             glUniform4f(loc, vec.x, vec.y, vec.z, vec.w);
         }
 
         int32_t get_vector_attrib_location(const std::string& name){
             auto ret = (int32_t)glGetAttribLocation(handle, name.c_str());
-            if(ret == -1)
+            if(ret == -1){
                 print("opengl: \"{:s}\" is not a valid vertex attribute\n", name);
+                throw std::runtime_error("opengl: Couldn't find vertex attribute");
+            }
             return ret;
         }
 
@@ -151,6 +153,16 @@ namespace benzene::opengl
         }
 
         private:
+        uint32_t get_uniform_location(const std::string& name){
+            auto ret = glGetUniformLocation(handle, name.c_str());
+            if(ret == -1){
+                print("opengl: \"{:s}\" is not a valid uniform\n", name);
+                throw std::runtime_error("opengl: Couldn't find uniform");
+            }
+
+            return ret;
+        }
+        
         uint32_t handle;
         std::vector<Shader> shaders;
     };

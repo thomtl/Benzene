@@ -28,8 +28,28 @@ struct GLFWwindow; // Forward Decl
 
 namespace benzene
 {
+    struct Texture {
+        static Texture load_from_file(const std::string& filename, const std::string& shader_name);
+
+        const std::vector<uint8_t>& bytes() const {
+            return data;
+        }
+
+        std::pair<int, int> dimensions() const {
+            return {width, height};
+        }
+
+        const std::string& get_shader_name() const {
+            return shader_name;
+        }
+
+        private:
+        std::vector<uint8_t> data;
+        int width, height, channels;
+        std::string shader_name;
+    };
+
     struct Mesh {
-        static Mesh load_from_file(const std::string& folder, const std::string& file);
         struct Vertex {
             glm::vec3 pos, colour, normal;
             glm::vec2 uv;
@@ -41,30 +61,31 @@ namespace benzene
 
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
+        std::vector<Texture> textures;
     };
 
-    struct Texture {
-        static Texture load_from_file(const std::string& filename);
-
-        const std::vector<uint8_t>& bytes(){
-            return data;
-        }
-
-        std::pair<int, int> dimensions(){
-            return {width, height};
-        }
-
-        private:
-        std::vector<uint8_t> data;
-        int width, height, channels;
-    };
 
     struct Model {
+        void load_mesh_data_from_file(const std::string& folder, const std::string& file);
+        void update(){
+            this->updated = true;
+        }
+
+        bool is_updated(){
+            if(this->updated){
+                this->updated = false;
+                return true;
+            } else {
+                return false;
+            }
+        }
+
         glm::vec3 pos;
         glm::vec3 rotation;
         glm::vec3 scale;
-        Mesh mesh;
-        Texture texture;
+        std::vector<Mesh> meshes;
+        private:
+        bool updated;
     };
 
     using ModelId = uint64_t;

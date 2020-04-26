@@ -13,11 +13,9 @@ namespace benzene::opengl
 {
     class Texture {
         public:
-        Texture() {}
-
-        Texture(benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data()} {}
-
-        Texture(size_t width, size_t height, const uint8_t* data) {
+        Texture(): handle{0}, shader_name{} {}
+        Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data(), tex.get_shader_name()} {}
+        Texture(size_t width, size_t height, const uint8_t* data, const std::string& shader_name): shader_name{shader_name} {
             glGenTextures(1, &handle);
 
             glBindTexture(GL_TEXTURE_2D, handle);
@@ -35,8 +33,13 @@ namespace benzene::opengl
             return handle;
         }
 
-        void bind(int i){
-            assert(i <= 31); // GL Current bound texture limit
+        void bind(Program& program, int i) const {
+            GLint max_units;
+            glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_units);
+            assert(i < (max_units - 1)); // GL Current bound texture limit
+
+            program.set_uniform("material." + shader_name, i); // Tell it to bind the uniform with the name "material.{shader_name}" to texture unit i
+
             glActiveTexture(GL_TEXTURE0 + i);
             glBindTexture(GL_TEXTURE_2D, handle);
         }
@@ -47,57 +50,48 @@ namespace benzene::opengl
 
         private:
         uint32_t handle;
+        std::string shader_name;
     };
 
-    struct Vertex {
-        glm::vec3 position, colour, normal;
-        glm::vec2 uv;
-    };
-
-    class Model {
+    class Mesh {
         public:
-        Model(): vao{0}, vbo{0}, ebo{0} {}
-        Model(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indicies, benzene::Texture& tex, Program& program): tex{tex}, program{&program}, n_indicies{indicies.size()} {
+        Mesh(): vao{0}, vbo{0}, ebo{0} {}
+        Mesh(const benzene::Mesh& api_mesh, Program& program): n_indicies{api_mesh.indices.size()}, program{&program} {
             glGenVertexArrays(1, &vao);
             glBindVertexArray(vao);
 
-
             glGenBuffers(1, &vbo);
             glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(Vertex) * vertices.size(), vertices.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ARRAY_BUFFER, sizeof(benzene::Mesh::Vertex) * api_mesh.vertices.size(), api_mesh.vertices.data(), GL_STATIC_DRAW);
 
             glGenBuffers(1, &ebo);
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * indicies.size(), indicies.data(), GL_STATIC_DRAW);
+            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * api_mesh.indices.size(), api_mesh.indices.data(), GL_STATIC_DRAW);
             
             auto enable_vertex_attribute = [&program](const std::string& name, size_t n, uintptr_t offset){
                 auto location = program.get_vector_attrib_location(name);
                 assert(location != -1);
 
                 glEnableVertexAttribArray(location);
-                glVertexAttribPointer(location, n, GL_FLOAT, GL_FALSE, sizeof(Vertex), (void*)offset);
+                glVertexAttribPointer(location, n, GL_FLOAT, GL_FALSE, sizeof(benzene::Mesh::Vertex), (void*)offset);
             };
 
-            enable_vertex_attribute("inPosition", 3, offsetof(Vertex, position));
-            enable_vertex_attribute("inColour", 3, offsetof(Vertex, colour));
-            enable_vertex_attribute("inNormal", 3, offsetof(Vertex, normal));
-            enable_vertex_attribute("inUv", 2, offsetof(Vertex, uv));
+            enable_vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
+            enable_vertex_attribute("inColour", 3, offsetof(benzene::Mesh::Vertex, colour));
+            enable_vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
+            enable_vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
 
             glBindBuffer(GL_ARRAY_BUFFER, 0);
             glBindVertexArray(0);
 
             glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+
+            for(const auto& texture : api_mesh.textures)
+                this->textures.emplace_back(texture);
         }
 
-        void bind(){
-            tex.bind(0);
-            glBindVertexArray(vao);
-        }
-
-        void draw(){
-            program->use();
+        void draw() const {
             this->bind();
-
             glDrawElements(GL_TRIANGLES, n_indicies, GL_UNSIGNED_INT, 0);
         }
 
@@ -106,16 +100,62 @@ namespace benzene::opengl
             glDeleteBuffers(1, &vbo);
             glDeleteBuffers(1, &ebo);
 
-            tex.clean();
+            for(auto& texture : textures)
+                texture.clean();
         }
 
-        benzene::Model* model;
-
         private:
-        uint32_t vao, vbo, ebo, shader_program;
-        Texture tex;
-        Program* program;
+        void bind() const {
+            for(size_t i = 0; i < textures.size(); i++)
+                textures[i].bind(*program, i);
+            
+            glBindVertexArray(vao);
+        }
+
+        uint32_t vao, vbo, ebo;
+        std::vector<opengl::Texture> textures;
 
         size_t n_indicies;
+        Program* program;
+    };
+
+    class Model {
+        public:
+        Model() {}
+        Model(benzene::Model& model, Program& program): model{&model}, program{&program} {
+            for(auto& mesh : model.meshes)
+		        meshes.emplace_back(mesh, program);
+        }
+
+        void draw() const {
+            auto model_matrix = glm::translate(glm::mat4{1.0f}, model->pos);
+		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
+		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+		    model_matrix = glm::rotate(model_matrix, glm::radians(model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+		    model_matrix = glm::scale(model_matrix, model->scale);
+
+            auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
+
+            program->use();
+            program->set_uniform("modelMatrix", model_matrix);
+            program->set_uniform("normalMatrix", normal_matrix);
+
+            for(const auto& mesh : meshes)
+                mesh.draw();
+        }
+
+        benzene::Model& api_handle() const {
+            return *model;
+        }
+
+        void clean(){
+            for(auto& mesh : meshes)
+                mesh.clean();
+        }
+
+        private:
+        benzene::Model* model;
+        Program* program;
+        std::vector<opengl::Mesh> meshes;
     };
 } // namespace benzene::opengl
