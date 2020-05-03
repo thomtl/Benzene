@@ -160,7 +160,7 @@ namespace benzene::opengl
             glDeleteProgram(handle);
         }
 
-        void use(){
+        void bind(){
             glUseProgram(handle);
         }
 

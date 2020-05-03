@@ -105,7 +105,7 @@ namespace benzene::opengl
                 textures[i].bind(*program, i);
             
             glBindVertexArray(vao);
-
+            program->bind();
             program->set_uniform("material.shininess", api_mesh->material.shininess);
         }
 
@@ -135,8 +135,8 @@ namespace benzene::opengl
             auto model_matrix = scale * translate * rotate;
             auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
 
-            program->use();
-            
+            program->bind();
+
             program->set_uniform("modelMatrix", model_matrix);
             program->set_uniform("normalMatrix", normal_matrix);
 
