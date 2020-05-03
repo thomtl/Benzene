@@ -96,13 +96,15 @@ namespace benzene::opengl
                 throw std::runtime_error("benzene/opengl: Failed to validate shader program");
             }
 
-            for(auto& shader : shaders)
+            for(auto& shader : shaders){
+                glDetachShader(handle, shader());
                 shader.clean(); // Not needed after this
+            }
         }
 
         void set_uniform(const std::string& name, glm::mat4 matrix){
             auto loc = this->get_uniform_location(name);
-            glUniformMatrix4fv(loc, 1, GL_FALSE, glm::value_ptr(matrix));
+            glProgramUniformMatrix4fv(handle, loc, 1, GL_FALSE, glm::value_ptr(matrix));
         }
 
         void set_uniform(const std::string& name, glm::mat3 matrix){
@@ -117,33 +119,32 @@ namespace benzene::opengl
                     tmp[i][j] = matrix[i][j];
             
             auto loc = this->get_uniform_location(name);
-            glUniformMatrix3fv(loc, 1, GL_FALSE, (const GLfloat*)tmp);
+            glProgramUniformMatrix3fv(handle, loc, 1, GL_FALSE, (const GLfloat*)tmp);
         }
-
 
         void set_uniform(const std::string& name, int i){
             auto loc = this->get_uniform_location(name);
-            glUniform1i(loc, i);
+            glProgramUniform1i(handle, loc, i);
         }
 
         void set_uniform(const std::string& name, float f){
             auto loc = this->get_uniform_location(name);
-            glUniform1f(loc, f);
+            glProgramUniform1f(handle, loc, f);
         }
 
         void set_uniform(const std::string& name, glm::vec2 vec){
             auto loc = this->get_uniform_location(name);
-            glUniform2f(loc, vec.x, vec.y);
+            glProgramUniform2f(handle, loc, vec.x, vec.y);
         }
 
         void set_uniform(const std::string& name, glm::vec3 vec){
             auto loc = this->get_uniform_location(name);
-            glUniform3f(loc, vec.x, vec.y, vec.z);
+            glProgramUniform3f(handle, loc, vec.x, vec.y, vec.z);
         }
 
         void set_uniform(const std::string& name, glm::vec4 vec){
             auto loc = this->get_uniform_location(name);
-            glUniform4f(loc, vec.x, vec.y, vec.z, vec.w);
+            glProgramUniform4f(handle, loc, vec.x, vec.y, vec.z, vec.w);
         }
 
         int32_t get_vector_attrib_location(const std::string& name){

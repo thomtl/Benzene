@@ -66,7 +66,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
 			glDebugMessageCallback(glDebugOutput, nullptr);
-			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, nullptr, GL_TRUE);
+			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 		}
 	}
 
@@ -87,6 +87,11 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 			print("\t- {:s}\n", glGetStringi(GL_EXTENSIONS, i));*/
 	}
 
+	if(!GLAD_GL_ARB_direct_state_access){
+		print("opengl: Need GL_ARB_direct_state_access, which the current driver does not support\n");
+		return;
+	}
+
 	int width, height;
 	glfwGetWindowSize(window, &width, &height);
 	glViewport(0, 0, width, height);
@@ -100,8 +105,6 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	glEnable(GL_MULTISAMPLE);
 	glEnable(GL_FRAMEBUFFER_SRGB); // Enable automatic gamma-correction
 
-
-	//glLineWidth(2.0f);
 
 	prog.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
 		uniform mat4 modelMatrix;
@@ -174,11 +177,9 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		})");
 
 	prog.compile();
-	prog.use();
-
 	
 	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
-	
+
 
 	prog.set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
 	prog.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
@@ -205,7 +206,7 @@ Backend::~Backend(){
 
 void Backend::framebuffer_resize_callback(int width, int height){
 	glViewport(0, 0, width, height);
-	prog.use();
+
 	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
 }
 
@@ -223,7 +224,6 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
 		}
 	}
 
-	prog.use();
 	auto cameraPosition = glm::vec3{3.0f, 3.0f, 0.0f};
 	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
 	prog.set_uniform("cameraPosition", cameraPosition);

@@ -1,9 +1,6 @@
 #pragma once
 
-#include "libs/glad/include/glad/glad.h"
-#include <GLFW/glfw3.h>
-
-#include <benzene/benzene.hpp>
+#include "base.hpp"
 
 #include <chrono>
 
@@ -14,20 +11,7 @@
 #include "libs/imgui/imgui_impl_glfw.h"
 #include "libs/imgui/imgui_impl_opengl3.h"
 
-template<>
-struct format::formatter<const GLubyte*> {
-	template<typename OutputIt>
-	static void format(format::format_output_it<OutputIt>& it, format::format_args args, const GLubyte* item){        
-		formatter<const char*>::format(it, args, (const char*)item);
-    }
-};
-
-namespace benzene::opengl
-{
-    constexpr bool validation = true;
-    constexpr bool debug = true;
-    constexpr bool wireframe_rendering = true;
-
+namespace benzene::opengl {
     class Backend : public IBackend {
         public:
         Backend(const char* application_name, GLFWwindow* window);

@@ -1,9 +1,6 @@
 #pragma once
 
-#include "libs/glad/include/glad/glad.h"
-#include <GLFW/glfw3.h>
-
-#include <benzene/benzene.hpp>
+#include "base.hpp"
 
 #include <vector>
 
@@ -18,17 +15,18 @@ namespace benzene::opengl
         Texture(): handle{0}, shader_name{} {}
         Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data(), tex.get_shader_name(), tex.get_gamut()} {}
         Texture(size_t width, size_t height, const uint8_t* data, const std::string& shader_name, benzene::Texture::Gamut gamut): shader_name{shader_name} {
-            glGenTextures(1, &handle);
+            glCreateTextures(GL_TEXTURE_2D, 1, &handle);
 
-            glBindTexture(GL_TEXTURE_2D, handle);
+            glTextureParameteri(handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+            glTextureParameteri(handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
+            glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
 
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            auto internal_format = (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB8 : GL_RGB8;
+            glTextureStorage2D(handle, 1, internal_format, width, height);
+            glTextureSubImage2D(handle, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
-            glTexImage2D(GL_TEXTURE_2D, 0, (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB : GL_RGB, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
-            glGenerateMipmap(GL_TEXTURE_2D);
+            glGenerateTextureMipmap(handle);
         }
 
         uint32_t operator()(){
@@ -36,14 +34,14 @@ namespace benzene::opengl
         }
 
         void bind(Program& program, int i) const {
-            GLint max_units;
-            glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_units);
-            assert(i < (max_units - 1)); // GL Current bound texture limit
+            if(debug){
+                GLint max_units;
+                glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_units);
+                assert(i < (max_units - 1)); // Test if we're going over the limit        
+            }
 
             program.set_uniform("material." + shader_name, i); // Tell it to bind the uniform with the name "material.{shader_name}" to texture unit i
-
-            glActiveTexture(GL_TEXTURE0 + i);
-            glBindTexture(GL_TEXTURE_2D, handle);
+            glBindTextureUnit(i, handle);
         }
 
         void clean(){
@@ -59,33 +57,29 @@ namespace benzene::opengl
         public:
         Mesh(): vao{0}, vbo{0}, ebo{0} {}
         Mesh(const benzene::Mesh& api_mesh, Program& program): n_indicies{api_mesh.indices.size()}, program{&program}, api_mesh{&api_mesh} {
-            glGenVertexArrays(1, &vao);
-            glBindVertexArray(vao);
+            glCreateBuffers(1, &vbo);
+            glNamedBufferStorage(vbo, sizeof(benzene::Mesh::Vertex) * api_mesh.vertices.size(), api_mesh.vertices.data(), GL_DYNAMIC_STORAGE_BIT);
 
-            glGenBuffers(1, &vbo);
-            glBindBuffer(GL_ARRAY_BUFFER, vbo);
-            glBufferData(GL_ARRAY_BUFFER, sizeof(benzene::Mesh::Vertex) * api_mesh.vertices.size(), api_mesh.vertices.data(), GL_STATIC_DRAW);
+            glCreateBuffers(1, &ebo);
+            glNamedBufferStorage(ebo, sizeof(uint32_t) * api_mesh.indices.size(), api_mesh.indices.data(), GL_DYNAMIC_STORAGE_BIT);
 
-            glGenBuffers(1, &ebo);
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
-            glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(uint32_t) * api_mesh.indices.size(), api_mesh.indices.data(), GL_STATIC_DRAW);
-            
-            auto enable_vertex_attribute = [&program](const std::string& name, size_t n, uintptr_t offset){
+            glCreateVertexArrays(1, &vao);
+
+            glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(benzene::Mesh::Vertex));
+            glVertexArrayElementBuffer(vao, ebo);
+
+            auto vertex_attribute = [&program, this](const std::string& name, size_t n, uintptr_t offset){
                 auto location = program.get_vector_attrib_location(name);
                 assert(location != -1);
 
-                glEnableVertexAttribArray(location);
-                glVertexAttribPointer(location, n, GL_FLOAT, GL_FALSE, sizeof(benzene::Mesh::Vertex), (void*)offset);
+                glEnableVertexArrayAttrib(vao, location); // Enable the location, so it provides the dynamic data and not the static one
+                glVertexArrayAttribFormat(vao, location, n, GL_FLOAT, GL_FALSE, offset); // Tell it how to find the data
+                glVertexArrayAttribBinding(vao, location, 0); // This attribute is in VBO 0, number must be thesame as the one in the glVertexArrayVertexBuffer call
             };
 
-            enable_vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
-            enable_vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
-            enable_vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
-
-            glBindBuffer(GL_ARRAY_BUFFER, 0);
-            glBindVertexArray(0);
-
-            glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+            vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
+            vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
+            vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
 
             for(const auto& texture : api_mesh.textures)
                 this->textures.emplace_back(texture);
@@ -142,6 +136,7 @@ namespace benzene::opengl
             auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
 
             program->use();
+            
             program->set_uniform("modelMatrix", model_matrix);
             program->set_uniform("normalMatrix", normal_matrix);
 
