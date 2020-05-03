@@ -79,6 +79,7 @@ namespace benzene::opengl
 
             vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
             vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
+            vertex_attribute("inTangent", 3, offsetof(benzene::Mesh::Vertex, tangent));
             vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
 
             for(const auto& texture : api_mesh.textures)

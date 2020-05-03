@@ -34,6 +34,7 @@ namespace benzene
             Srgb
         };
         static Texture load_from_file(const std::string& filename, const std::string& shader_name, Gamut gamut);
+        static Texture load_from_colour(glm::vec3 colour, const std::string& shader_name);
 
         const std::vector<uint8_t>& bytes() const {
             return data;
@@ -60,11 +61,11 @@ namespace benzene
 
     struct Mesh {
         struct Vertex {
-            glm::vec3 pos, normal;
+            glm::vec3 pos, normal, tangent;
             glm::vec2 uv;
 
             bool operator==(const Vertex& other) const {
-                return (pos == other.pos) && (normal == other.normal) && (uv == other.uv);
+                return (pos == other.pos) && (normal == other.normal) && (tangent == other.tangent) && (uv == other.uv);
             }
         };
 
@@ -162,6 +163,7 @@ namespace std {
             size_t seed = 0;
             combine(seed, vertex.pos);
             combine(seed, vertex.normal);
+            combine(seed, vertex.tangent);
             combine(seed, vertex.uv);
             return seed;
         }

@@ -37,6 +37,22 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename, c
     return tex;
 }
 
+benzene::Texture benzene::Texture::load_from_colour(glm::vec3 colour, const std::string& shader_name){
+    Texture tex{};
+    tex.shader_name = shader_name;
+    tex.width = 1;
+    tex.height = 1;
+    tex.channels = 4;
+    tex.gamut = Gamut::Linear;
+
+    tex.data.push_back(colour.r * 255);
+    tex.data.push_back(colour.g * 255);
+    tex.data.push_back(colour.b * 255);
+    tex.data.push_back(255);
+
+    return tex;
+}
+
 void benzene::Model::load_mesh_data_from_file(const std::string& folder, const std::string& file){
     assert(folder[folder.size() - 1] == '/');
     assert(file[0] != '/');
@@ -102,9 +118,27 @@ void benzene::Model::load_mesh_data_from_file(const std::string& folder, const s
                     return glm::normalize(glm::cross(U, V));
                 };
 
+                auto calculate_surface_tangent = [](Mesh::Vertex v1, Mesh::Vertex v2, Mesh::Vertex v3) -> glm::vec3 {
+                    auto e0 = v2.pos - v1.pos;
+                    auto e1 = v3.pos - v1.pos;
+
+                    auto duv0 = v2.uv - v1.uv;
+                    auto duv1 = v3.uv - v1.uv;
+
+                    auto f = 1 / (duv0.x * duv1.y - duv1.x * duv0.y);
+
+                    return glm::normalize(glm::vec3{
+                        f * ((duv1.y * e0.x) - (duv0.y * e1.x)),
+                        f * ((duv1.y * e0.y) - (duv0.y * e1.y)),
+                        f * ((duv1.y * e0.z) - (duv0.y * e1.z))
+                    });
+                };
+
                 auto normal = calculate_surface_normal(v1.pos, v2.pos, v3.pos);
+                auto tangent = calculate_surface_tangent(v1, v2, v3);
 
                 v1.normal = v2.normal = v3.normal = normal;
+                v1.tangent = v2.tangent = v3.tangent = tangent;
             }
         }
 

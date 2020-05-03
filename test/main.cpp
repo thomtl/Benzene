@@ -8,47 +8,47 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
 
     std::vector<benzene::Mesh::Vertex> raw_vertices = {
         // Back face
-        {{-0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {0.0f, 0.0f}}, // Bottom-left
-        {{0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 1.0f}}, // top-right
-        {{0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f}}, // bottom-right         
-        {{0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 1.0f}}, // top-right
-        {{-0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {0.0f, 0.0f}}, // bottom-left
-        {{-0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {0.0f, 1.0f}}, // top-left
+        {{-0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // Bottom-left
+        {{0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right
+        {{0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right         
+        {{0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right
+        {{-0.5f, -0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left
+        {{-0.5f,  0.5f, -0.5f}, {0.0f,  0.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
         // Front face
-        {{-0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {0.0f, 0.0f}}, // bottom-left
-        {{0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f}}, // bottom-right
-        {{0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 1.0f}}, // top-right
-        {{0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 1.0f}}, // top-right
-        {{-0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {0.0f, 1.0f}}, // top-left
-        {{-0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {0.0f, 0.0f}}, // bottom-left
+        {{-0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left
+        {{0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right
+        {{0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right
+        {{-0.5f,  0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
+        {{-0.5f, -0.5f,  0.5f}, {0.0f,  0.0f, 1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left
         // Left face
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
-        {{-0.5f,  0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
-        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
-        {{-0.5f, -0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
-        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
+        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
+        {{-0.5f,  0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
+        {{-0.5f, -0.5f, -0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-left
+        {{-0.5f, -0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
+        {{-0.5f,  0.5f,  0.5f}, {-1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}, // top-right
         // Right face
-        {{0.5f,  0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
-        {{0.5f, -0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
-        {{0.5f,  0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right         
-        {{0.5f, -0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
-        {{0.5f,  0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
-        {{0.5f, -0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left     
+        {{0.5f,  0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
+        {{0.5f, -0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
+        {{0.5f,  0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 1.0f}}, // top-right         
+        {{0.5f, -0.5f, -0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 1.0f}}, // bottom-right
+        {{0.5f,  0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}}, // top-left
+        {{0.5f, -0.5f,  0.5f}, {1.0f,  0.0f, 0.0f}, {0.0f, 1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-left     
         // Bottom face
-        {{-0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
-        {{0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
-        {{0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
-        {{0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
-        {{-0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
-        {{-0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
+        {{-0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
+        {{0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-left
+        {{0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
+        {{0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-left
+        {{-0.5f, -0.5f,  0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}, // bottom-right
+        {{-0.5f, -0.5f, -0.5f}, {0.0f,  -1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-right
         // Top face
-        {{-0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
-        {{0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
-        {{0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 1.0f}}, // top-right     
-        {{0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
-        {{-0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
-        {{-0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {0.0f, 0.0f}}  // bottom-left
+        {{-0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
+        {{0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 1.0f}}, // top-right     
+        {{0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {1.0f, 0.0f}}, // bottom-right
+        {{-0.5f,  0.5f, -0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 1.0f}}, // top-left
+        {{-0.5f,  0.5f,  0.5f}, {0.0f,  1.0f, 0.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}}  // bottom-left
     };
     assert((raw_vertices.size() % 3) == 0);
 
@@ -60,8 +60,9 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     benzene::Mesh mesh{};
     mesh.indices = raw_indices;
     mesh.vertices = raw_vertices;
-    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_diffuse.png", "diffuse", benzene::Texture::Gamut::Srgb));
-    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/container_specular.png", "specular", benzene::Texture::Gamut::Linear));
+    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/brickwall.jpg", "diffuse", benzene::Texture::Gamut::Srgb));
+    mesh.textures.push_back(benzene::Texture::load_from_colour(glm::vec3{1}, "specular"));
+    mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/brickwall_normal.jpg", "normal", benzene::Texture::Gamut::Linear));
     mesh.material.shininess = 64.0f;
     mesh.material.specular = glm::vec3{1.0f, 1.0f, 1.0f};
 

@@ -111,25 +111,55 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		uniform mat4 viewMatrix;
 		uniform mat4 projectionMatrix;
 		uniform mat3 normalMatrix;
+
+		struct Light {
+			vec3 position;
+			vec3 ambient;
+			vec3 diffuse;
+			vec3 specular;
+		};
+
+		uniform Light light;
+		uniform vec3 cameraPos;
 		
 		layout (location = 0) in vec3 inPosition;
 		layout (location = 1) in vec3 inNormal;
-		layout (location = 2) in vec2 inUv;
+		layout (location = 2) in vec3 inTangent;
+		layout (location = 3) in vec2 inUv;
 		
-		layout (location = 0) out vec3 outWorldPosition;
-		layout (location = 1) out vec3 outNormal;
-		layout (location = 2) out vec2 outUv;
+		out VS_OUT {
+			vec3 fragPos;
+			vec3 tangentLightPos;
+			vec3 tangentCameraPos;
+			vec3 tangentFragPos;
+			vec2 uv;
+		} vs_out;
+
 		void main() {
-		   gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
-		   outWorldPosition = vec3(modelMatrix * vec4(inPosition.xyz, 1.0));
-		   outUv = inUv;
-		   outNormal = normalMatrix * inNormal.xyz;
+		   	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
+		
+			vec3 T = normalize(normalMatrix * inTangent);
+		   	vec3 N = normalize(normalMatrix * inNormal);
+			
+			T = normalize(T - dot(T, N) * N);
+
+			vec3 B = cross(N, T);
+
+			mat3 TBN = transpose(mat3(T, B, N));
+
+
+			vs_out.uv = inUv;
+			vs_out.fragPos = vec3(modelMatrix * vec4(inPosition, 1.0));
+			vs_out.tangentLightPos = TBN * light.position;
+			vs_out.tangentCameraPos = TBN * cameraPos;
+			vs_out.tangentFragPos = TBN * vs_out.fragPos;
 		})");
 
 	prog.add_shader(GL_FRAGMENT_SHADER, R"(#version 420 core
 		struct Material {
 			sampler2D diffuse;
 			sampler2D specular;
+			sampler2D normal;
 			float shininess;
 		};
 
@@ -142,25 +172,29 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 
 		uniform Light light;
 		uniform Material material;
-		uniform vec3 cameraPosition;
 		
-		layout (location = 0) in vec3 inWorldPosition;
-		layout (location = 1) in vec3 inNormal;
-		layout (location = 2) in vec2 inUv;
+		
+		in VS_OUT {
+			vec3 fragPos;
+			vec3 tangentLightPos;
+			vec3 tangentCameraPos;
+			vec3 tangentFragPos;
+			vec2 uv;
+		} fs_in;
 		
 		const bool blinn = false;
 
 		
 		out vec4 fragColour;
 		void main() {
-		   	vec3 normal = normalize(inNormal);
-		   	vec3 lightDir = normalize(light.position - inWorldPosition);
-		   	vec3 cameraDir = normalize(cameraPosition - inWorldPosition);
+		   	vec3 normal = normalize(texture(material.normal, fs_in.uv).rgb * 2.0 - 1.0);
+		   	vec3 lightDir = normalize(light.position - fs_in.tangentFragPos);
+		   	vec3 cameraDir = normalize(fs_in.tangentCameraPos - fs_in.tangentFragPos);
 		   
-		   	vec3 ambient = light.ambient * texture(material.diffuse, inUv).rgb;
+		   	vec3 ambient = light.ambient * texture(material.diffuse, fs_in.uv).rgb;
 		   
 		   	float diffuseIntensity = max(dot(normal, lightDir), 0.0);
-		   	vec3 diffuse = light.diffuse * diffuseIntensity * texture(material.diffuse, inUv).rgb;
+		   	vec3 diffuse = light.diffuse * diffuseIntensity * texture(material.diffuse, fs_in.uv).rgb;
 
 			float specularIntensity;
 			if (blinn){
@@ -170,7 +204,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 				vec3 reflectDir = reflect(-lightDir, normal);
 				specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), material.shininess);
 			}
-			vec3 specular = light.specular * specularIntensity * texture(material.specular, inUv).rgb;
+			vec3 specular = light.specular * specularIntensity * texture(material.specular, fs_in.uv).rgb;
 		   
 		   	vec3 result = ambient + diffuse + specular;
 		   	fragColour = vec4(result, 1.0);
@@ -226,7 +260,7 @@ void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>
 
 	auto cameraPosition = glm::vec3{3.0f, 3.0f, 0.0f};
 	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
-	prog.set_uniform("cameraPosition", cameraPosition);
+	prog.set_uniform("cameraPos", cameraPosition);
 
 	for(const auto& [id, model] : internal_models)
 		model.draw();
