@@ -15,7 +15,7 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename, c
     int width, height, channels;
     stbi_set_flip_vertically_on_load(true);
 
-    auto* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_rgb_alpha);
+    auto* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_default);
     if(!data) {
         print("vulkan/texture: Failed to load texture data, error: {:s}\n", stbi_failure_reason());
         throw std::runtime_error("vulkan/texture: Failed to load image data from file");
@@ -28,7 +28,7 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename, c
     tex.channels = channels;
     tex.gamut = gamut;
 
-    size_t size = width * height * 4;
+    size_t size = width * height * channels;
     tex.data.resize(size);
     memcpy(tex.data.data(), data, size);
 
@@ -42,13 +42,12 @@ benzene::Texture benzene::Texture::load_from_colour(glm::vec3 colour, const std:
     tex.shader_name = shader_name;
     tex.width = 1;
     tex.height = 1;
-    tex.channels = 4;
+    tex.channels = 3;
     tex.gamut = Gamut::Linear;
 
     tex.data.push_back(colour.r * 255);
     tex.data.push_back(colour.g * 255);
     tex.data.push_back(colour.b * 255);
-    tex.data.push_back(255);
 
     return tex;
 }
@@ -118,20 +117,16 @@ void benzene::Model::load_mesh_data_from_file(const std::string& folder, const s
                     return glm::normalize(glm::cross(U, V));
                 };
 
-                auto calculate_surface_tangent = [](Mesh::Vertex v1, Mesh::Vertex v2, Mesh::Vertex v3) -> glm::vec3 {
-                    auto e0 = v2.pos - v1.pos;
-                    auto e1 = v3.pos - v1.pos;
+                auto calculate_surface_tangent = [](Mesh::Vertex v0, Mesh::Vertex v1, Mesh::Vertex v2) -> glm::vec3 {
+                    auto dv1 = v1.pos - v0.pos;
+                    auto dv2 = v2.pos - v0.pos;
 
-                    auto duv0 = v2.uv - v1.uv;
-                    auto duv1 = v3.uv - v1.uv;
+                    auto duv1 = v1.uv - v0.uv;
+                    auto duv2 = v2.uv - v0.uv;
 
-                    auto f = 1 / (duv0.x * duv1.y - duv1.x * duv0.y);
+                    auto f = 1.0f / (duv1.x * duv2.y - duv1.y * duv2.x);
 
-                    return glm::normalize(glm::vec3{
-                        f * ((duv1.y * e0.x) - (duv0.y * e1.x)),
-                        f * ((duv1.y * e0.y) - (duv0.y * e1.y)),
-                        f * ((duv1.y * e0.z) - (duv0.y * e1.z))
-                    });
+                    return glm::normalize((dv1 * duv2.y - dv2 * duv1.y) * f);
                 };
 
                 auto normal = calculate_surface_normal(v1.pos, v2.pos, v3.pos);

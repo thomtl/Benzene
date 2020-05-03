@@ -13,8 +13,8 @@ namespace benzene::opengl
     class Texture {
         public:
         Texture(): handle{0}, shader_name{} {}
-        Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, tex.bytes().data(), tex.get_shader_name(), tex.get_gamut()} {}
-        Texture(size_t width, size_t height, const uint8_t* data, const std::string& shader_name, benzene::Texture::Gamut gamut): shader_name{shader_name} {
+        Texture(const benzene::Texture& tex): Texture{(size_t)tex.dimensions().first, (size_t)tex.dimensions().second, (size_t)tex.get_channels(), tex.bytes().data(), tex.get_shader_name(), tex.get_gamut()} {}
+        Texture(size_t width, size_t height, size_t channels, const uint8_t* data, const std::string& shader_name, benzene::Texture::Gamut gamut): shader_name{shader_name} {
             glCreateTextures(GL_TEXTURE_2D, 1, &handle);
 
             glTextureParameteri(handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
@@ -24,7 +24,17 @@ namespace benzene::opengl
 
             auto internal_format = (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB8 : GL_RGB8;
             glTextureStorage2D(handle, 1, internal_format, width, height);
-            glTextureSubImage2D(handle, 0, 0, 0, width, height, GL_RGBA, GL_UNSIGNED_BYTE, data);
+
+            auto format = GL_RGBA;
+            switch (channels){
+            case 3: format = GL_RGB; break;
+            case 4: format = GL_RGBA; break;
+            default:
+                print("opengl/Texture: Unknown channel count {:d}\n", channels);
+                throw std::runtime_error("opengl/Texture: Unknown channel count");
+                break;
+            }
+            glTextureSubImage2D(handle, 0, 0, 0, width, height, format, GL_UNSIGNED_BYTE, data);
 
             glGenerateTextureMipmap(handle);
         }

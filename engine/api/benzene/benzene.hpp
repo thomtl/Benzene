@@ -44,6 +44,10 @@ namespace benzene
             return {width, height};
         }
 
+        int get_channels() const {
+            return channels;
+        }
+
         const std::string& get_shader_name() const {
             return shader_name;
         }
