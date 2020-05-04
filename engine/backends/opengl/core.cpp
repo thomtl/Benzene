@@ -71,14 +71,29 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	}
 
 	if constexpr (debug) {
-		print("opengl: Vendor: {:s}\n", glGetString(GL_VENDOR));
+		auto get_integer = [](GLenum v) -> GLint {
+			GLint i{};
+			glGetIntegerv(v, &i);
+			return i;
+		};
+
+		print("opengl: Context Version: {:d}.{:d}\n", get_integer(GL_MAJOR_VERSION), get_integer(GL_MINOR_VERSION));
+		print("        Vendor: {:s}\n", glGetString(GL_VENDOR));
 		print("        Renderer: {:s}\n", glGetString(GL_RENDERER));
 		print("        GL Version: {:s}\n", glGetString(GL_VERSION));
 		print("        GLSL Version: {:s}\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-		GLint msaa_buffers, msaa_samples;
-		glGetIntegerv(GL_SAMPLE_BUFFERS, &msaa_buffers);
-		glGetIntegerv(GL_SAMPLES, &msaa_samples);
-		print("        MSAA: Buffers: {:d}, samples: {:d}\n", msaa_buffers, msaa_samples);
+		print("        MSAA: Buffers: {:d}, samples: {:d}\n", get_integer(GL_SAMPLE_BUFFERS), get_integer(GL_SAMPLES));
+
+		print("opengl: Capabilities:\n");
+		print("        Max Clip Distances: {:d}\n", get_integer(GL_MAX_CLIP_DISTANCES));
+		print("        Max Texture Units: {:d}\n", get_integer(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS));
+		print("        Max Uniform Blocks: {:d}\n", get_integer(GL_MAX_COMBINED_UNIFORM_BLOCKS));
+		print("        Max SSBO Bindings: {:d}\n", get_integer(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS));
+		print("        Max Vertex Attribs: {:d}\n", get_integer(GL_MAX_VERTEX_ATTRIBS));
+		print("        Max Fragment Outputs: {:d}\n", get_integer(GL_MAX_DRAW_BUFFERS));
+		print("        Max Framebuffer Dimensions: {:d}x{:d}\n", get_integer(GL_MAX_FRAMEBUFFER_WIDTH), get_integer(GL_MAX_FRAMEBUFFER_HEIGHT));
+		print("        Max MSAA Samples: {:d}\n", get_integer(GL_MAX_INTEGER_SAMPLES));
+
 
 		/*GLint n_extensions;
 		glGetIntegerv(GL_NUM_EXTENSIONS, &n_extensions);

@@ -143,7 +143,7 @@ namespace benzene::opengl
 		    rotate = glm::rotate(rotate, glm::radians(model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
 		    rotate = glm::rotate(rotate, glm::radians(model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
             
-            auto model_matrix = scale * translate * rotate;
+            auto model_matrix = translate * rotate * scale;
             auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
 
             program->bind();
