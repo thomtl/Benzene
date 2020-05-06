@@ -3,10 +3,9 @@
 #include "base.hpp"
 
 #include <vector>
+#include <optional>
 
 #include "pipeline.hpp"
-
-#include <glm/gtx/string_cast.hpp>
 
 namespace benzene::opengl
 {
@@ -17,10 +16,23 @@ namespace benzene::opengl
         Texture(size_t width, size_t height, size_t channels, const uint8_t* data, const std::string& shader_name, benzene::Texture::Gamut gamut): shader_name{shader_name} {
             glCreateTextures(GL_TEXTURE_2D, 1, &handle);
 
-            glTextureParameteri(handle, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
-            glTextureParameteri(handle, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
-            glTextureParameteri(handle, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-            glTextureParameteri(handle, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+            this->set_parameter(GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+            this->set_parameter(GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+            this->set_parameter(GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+            this->set_parameter(GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            if((GL_ARB_texture_filter_anisotropic || GL_EXT_texture_filter_anisotropic) && !max_anisotropy.has_value()){
+                static_assert(GL_MAX_TEXTURE_MAX_ANISOTROPY == GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, "Support both ARB and EXT anisotropy extensions");
+                float max = 0.0f;
+                glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY, &max);
+                this->max_anisotropy = max;
+            }
+
+            if(max_anisotropy.has_value()){
+                static_assert(GL_TEXTURE_MAX_ANISOTROPY == GL_TEXTURE_MAX_ANISOTROPY_EXT, "Support both ARB and EXT anisotropy extensions");
+
+                this->set_parameter(GL_TEXTURE_MAX_ANISOTROPY, *this->max_anisotropy);
+            }
 
             auto internal_format = (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB8 : GL_RGB8;
             glTextureStorage2D(handle, 1, internal_format, width, height);
@@ -43,14 +55,16 @@ namespace benzene::opengl
             return handle;
         }
 
-        void bind(Program& program, int i) const {
-            if(debug){
+        void bind(Program& program, size_t i) const {
+            if(!max_texture_units.has_value()){
                 GLint max_units;
                 glGetIntegerv(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS, &max_units);
-                assert(i < (max_units - 1)); // Test if we're going over the limit        
+                max_texture_units = max_units;
             }
 
-            program.set_uniform("material." + shader_name, i); // Tell it to bind the uniform with the name "material.{shader_name}" to texture unit i
+            assert(i < (*max_texture_units - 1)); // Test if we're going over the limit        
+
+            program.set_uniform("material." + shader_name, (int)i); // Tell it to bind the uniform with the name "material.{shader_name}" to texture unit i
             glBindTextureUnit(i, handle);
         }
 
@@ -58,9 +72,20 @@ namespace benzene::opengl
             glDeleteTextures(1, &handle);
         }
 
+        void set_parameter(GLenum key, GLint value){
+            glTextureParameteri(handle, key, value);
+        }
+
+        void set_parameter(GLenum key, GLfloat value){
+            glTextureParameterf(handle, key, value);
+        }
+
         private:
         uint32_t handle;
         std::string shader_name;
+
+        static std::optional<float> max_anisotropy;
+        static std::optional<size_t> max_texture_units;
     };
 
     class Mesh {

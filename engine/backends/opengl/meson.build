@@ -1,5 +1,5 @@
 opengl_deps = [engine_deps]
-opengl_sources = files('core.cpp')
+opengl_sources = files('core.cpp', 'model.cpp')
 
 cc = meson.get_compiler('cpp')
 dl_dep = cc.find_library('dl', required: false)
