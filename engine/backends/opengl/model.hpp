@@ -4,6 +4,7 @@
 
 #include <vector>
 #include <optional>
+#include <cmath>
 
 #include "pipeline.hpp"
 
@@ -35,7 +36,8 @@ namespace benzene::opengl
             }
 
             auto internal_format = (gamut == benzene::Texture::Gamut::Srgb) ? GL_SRGB8 : GL_RGB8;
-            glTextureStorage2D(handle, 1, internal_format, width, height);
+            auto mip_levels = (size_t)std::floor(std::log2(std::max(width, height))) + 1;
+            glTextureStorage2D(handle, mip_levels, internal_format, width, height);
 
             auto format = GL_RGBA;
             switch (channels){
