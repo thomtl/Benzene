@@ -64,7 +64,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     mesh.textures.push_back(benzene::Texture::load_from_colour(glm::vec3{1}, "specular"));
     mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/brickwall_normal.jpg", "normal", benzene::Texture::Gamut::Linear));
     mesh.material.shininess = 64.0f;
-    mesh.material.specular = glm::vec3{1.0f, 1.0f, 1.0f};
 
     benzene::Model model{};
     model.meshes.push_back(mesh);
@@ -82,19 +81,7 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     //engine.add_model(&model2);
 
     engine.run([&](benzene::FrameData& data){
-        ImGui::Begin("Test");
-
-        ImGui::TextUnformatted("Model 1\n");
-        ImGui::SliderFloat3("Position 1: ", &model.pos.x, -5, 5);
-        ImGui::SliderFloat3("Rotation 1: ", &model.rotation.x, 0, 360);
-        ImGui::SliderFloat3("Scale 1: ", &model.scale.x, 1, 5);
-
-        /*ImGui::TextUnformatted("Model 2\n");
-        ImGui::SliderFloat3("Position 2: ", &model2.pos.x, -5, 5);
-        ImGui::SliderFloat3("Rotation 2: ", &model2.rotation.x, 0, 360);
-        ImGui::SliderFloat3("Scale 2: ", &model2.scale.x, 1, 5);*/
-
-        ImGui::End();
+        model.show_inspector();
 
         if(ImGui::BeginMainMenuBar()){
             if(ImGui::BeginMenu("File")){

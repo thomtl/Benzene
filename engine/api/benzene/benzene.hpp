@@ -33,6 +33,14 @@ namespace benzene
             Linear,
             Srgb
         };
+        static const char* gamut_to_str(Gamut gamut){
+            switch(gamut){
+            case Gamut::Linear: return "linear";
+            case Gamut::Srgb: return "srgb";
+            }
+
+            return "unknown";
+        }
         static Texture load_from_file(const std::string& filename, const std::string& shader_name, Gamut gamut);
         static Texture load_from_colour(glm::vec3 colour, const std::string& shader_name);
 
@@ -74,7 +82,6 @@ namespace benzene
         };
 
         struct Material {
-            glm::vec3 specular;
             float shininess;
         };
 
@@ -87,6 +94,7 @@ namespace benzene
 
     struct Model {
         void load_mesh_data_from_file(const std::string& folder, const std::string& file);
+        void show_inspector();
         void update(){
             this->updated = true;
         }
