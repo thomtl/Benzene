@@ -2,6 +2,8 @@
 #include "../../core/format.hpp"
 #include <mutex>
 #include <thread>
+#include <regex>
+
 
 using namespace benzene::opengl;
 
@@ -52,6 +54,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	frame_counter = 0;
 	fps = 0;
 	fps_cap_enabled = false;
+	extension_window_is_showing = false;
 	glfwSwapInterval(0); // Remove 60 FPS Cap
 	print("opengl: Starting OpenGL Backend\n");
 
@@ -308,7 +311,14 @@ void Backend::end_run(){
 }
 
 void Backend::draw_debug_window(){
-	ImGui::Begin("Benzene");
+	ImGui::Begin("Benzene", NULL, ImGuiWindowFlags_MenuBar);
+
+	if(ImGui::BeginMenuBar()){
+		if(ImGui::MenuItem("Extensions")){
+			extension_window_is_showing = !extension_window_is_showing;
+		}
+		ImGui::EndMenuBar();
+	}
 
 	if constexpr (wireframe_rendering){
 		ImGui::Checkbox("Wireframe rendering", &this->is_wireframe);
@@ -330,5 +340,33 @@ void Backend::draw_debug_window(){
 
 	ImGui::PlotLines("Frame times (ms)", last_frame_times.data(), last_frame_times.size(), 0, "", min_frame_time, max_frame_time, ImVec2{0, 80});
 	ImGui::Text("FPS: %f\n", this->fps);
+	ImGui::End();
+
+	if(extension_window_is_showing)
+		this->show_extension_window();
+}
+
+void Backend::show_extension_window(){
+	ImGui::Begin("Extension Query");
+
+	char buf[128] = {};
+	ImGui::Text("Query: ");
+	ImGui::SameLine(0, 0);
+	ImGui::InputText("", buf, 128);
+
+	std::regex regex{std::string{buf}};
+	
+	ImGui::BeginChild("Scrolling", ImVec2{0, 0}, true);
+
+	GLint n = 0;
+	glGetIntegerv(GL_NUM_EXTENSIONS, &n);
+
+	for(GLint i = 0; i < n; i++){
+		auto str = std::string{(const char*)glGetStringi(GL_EXTENSIONS, i)};
+		if(std::regex_search(str, regex))
+			ImGui::Text("%s", str.c_str());
+	}
+
+	ImGui::EndChild();
 	ImGui::End();
 }

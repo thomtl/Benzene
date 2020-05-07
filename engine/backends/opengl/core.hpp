@@ -69,5 +69,9 @@ namespace benzene::opengl {
         std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
 
         std::array<float, 100> last_frame_times;
+
+        void show_extension_window();
+
+        bool extension_window_is_showing;
     };
 } // namespace benzene::opengl
