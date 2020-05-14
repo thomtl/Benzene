@@ -71,8 +71,9 @@ namespace benzene::opengl {
 
         std::array<float, 100> last_frame_times;
 
-        void show_extension_window();
+        void show_extension_window(bool &opened);
+        void show_driver_info_window(bool& opened);
 
-        bool extension_window_is_showing;
+        bool extension_window_is_showing, driver_info_window_is_showing;
     };
 } // namespace benzene::opengl

@@ -55,8 +55,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	fps = 0;
 	fps_cap_enabled = false;
 	extension_window_is_showing = false;
-	glfwSwapInterval(0); // Remove 60 FPS Cap
-	print("opengl: Starting OpenGL Backend\n");
+	driver_info_window_is_showing = false;
+	glfwSwapInterval(0); // Disable Vsync
 
 	if(!gladLoadGLLoader((GLADloadproc)glfwGetProcAddress))
 		throw std::runtime_error("benzene/opengl: Failed to initialize GLAD");
@@ -71,38 +71,6 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 			glDebugMessageCallback(glDebugOutput, nullptr);
 			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
 		}
-	}
-
-	if constexpr (debug) {
-		auto get_integer = [](GLenum v) -> GLint {
-			GLint i{};
-			glGetIntegerv(v, &i);
-			return i;
-		};
-
-		print("opengl: Context Version: {:d}.{:d}\n", get_integer(GL_MAJOR_VERSION), get_integer(GL_MINOR_VERSION));
-		print("        Vendor: {:s}\n", glGetString(GL_VENDOR));
-		print("        Renderer: {:s}\n", glGetString(GL_RENDERER));
-		print("        GL Version: {:s}\n", glGetString(GL_VERSION));
-		print("        GLSL Version: {:s}\n", glGetString(GL_SHADING_LANGUAGE_VERSION));
-		print("        MSAA: Buffers: {:d}, samples: {:d}\n", get_integer(GL_SAMPLE_BUFFERS), get_integer(GL_SAMPLES));
-
-		print("opengl: Capabilities:\n");
-		print("        Max Clip Distances: {:d}\n", get_integer(GL_MAX_CLIP_DISTANCES));
-		print("        Max Texture Units: {:d}\n", get_integer(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS));
-		print("        Max Uniform Blocks: {:d}\n", get_integer(GL_MAX_COMBINED_UNIFORM_BLOCKS));
-		print("        Max SSBO Bindings: {:d}\n", get_integer(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS));
-		print("        Max Vertex Attribs: {:d}\n", get_integer(GL_MAX_VERTEX_ATTRIBS));
-		print("        Max Fragment Outputs: {:d}\n", get_integer(GL_MAX_DRAW_BUFFERS));
-		print("        Max Framebuffer Dimensions: {:d}x{:d}\n", get_integer(GL_MAX_FRAMEBUFFER_WIDTH), get_integer(GL_MAX_FRAMEBUFFER_HEIGHT));
-		print("        Max MSAA Samples: {:d}\n", get_integer(GL_MAX_INTEGER_SAMPLES));
-
-
-		/*GLint n_extensions;
-		glGetIntegerv(GL_NUM_EXTENSIONS, &n_extensions);
-		print("opengl: Supported extensions\n");
-		for(int i = 0; i < n_extensions; i++)
-			print("\t- {:s}\n", glGetStringi(GL_EXTENSIONS, i));*/
 	}
 
 	if(!GLAD_GL_ARB_direct_state_access){
@@ -244,6 +212,15 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 
 	ImGui_ImplGlfw_InitForOpenGL(window, true);
 	ImGui_ImplOpenGL3_Init();
+
+	print("opengl: Started OpenGL Backend\n");
+
+	//Framebuffer fb{(size_t)width, (size_t)height, {
+	//	{.type = Framebuffer::Attachment::Type::Colour, .format = GL_RGBA8, .i = 0},
+	//	{.type = Framebuffer::Attachment::Type::DepthStencil, .format = GL_DEPTH24_STENCIL8},
+	//}};
+	//fb.bind<GL_READ_FRAMEBUFFER>();
+	//fb.clean();
 }
 
 Backend::~Backend(){
@@ -314,9 +291,10 @@ void Backend::draw_debug_window(){
 	ImGui::Begin("Benzene", NULL, ImGuiWindowFlags_MenuBar);
 
 	if(ImGui::BeginMenuBar()){
-		if(ImGui::MenuItem("Extensions")){
+		if(ImGui::MenuItem("Extensions"))
 			extension_window_is_showing = !extension_window_is_showing;
-		}
+		if(ImGui::MenuItem("Driver"))
+			driver_info_window_is_showing = !driver_info_window_is_showing;
 		ImGui::EndMenuBar();
 	}
 
@@ -343,11 +321,14 @@ void Backend::draw_debug_window(){
 	ImGui::End();
 
 	if(extension_window_is_showing)
-		this->show_extension_window();
+		this->show_extension_window(extension_window_is_showing);
+		
+	if(driver_info_window_is_showing)
+		this->show_driver_info_window(driver_info_window_is_showing);
 }
 
-void Backend::show_extension_window(){
-	ImGui::Begin("Extension Query");
+void Backend::show_extension_window(bool& opened){
+	ImGui::Begin("Extension Query", &opened);
 
 	char buf[128] = {};
 	ImGui::Text("Query: ");
@@ -369,4 +350,52 @@ void Backend::show_extension_window(){
 
 	ImGui::EndChild();
 	ImGui::End();
+}
+
+void Backend::show_driver_info_window(bool& opened){
+    auto get_integer = [](GLenum v) -> GLint {
+		GLint i{};
+		glGetIntegerv(v, &i);
+		return i;
+	};
+
+    auto show_state_info = [&get_integer](){
+        ImGui::TextUnformatted(format_to_str("opengl: Context Version: {:d}.{:d}", get_integer(GL_MAJOR_VERSION), get_integer(GL_MINOR_VERSION)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Vendor: {:s}", glGetString(GL_VENDOR)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Renderer: {:s}", glGetString(GL_RENDERER)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        GL Version: {:s}", glGetString(GL_VERSION)).c_str());
+    	ImGui::TextUnformatted(format_to_str("        GLSL Version: {:s}", glGetString(GL_SHADING_LANGUAGE_VERSION)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        MSAA: Buffers: {:d}, samples: {:d}", get_integer(GL_SAMPLE_BUFFERS), get_integer(GL_SAMPLES)).c_str());
+    };
+
+    auto show_capabilities_info = [&get_integer](){
+        ImGui::TextUnformatted(format_to_str("opengl: Capabilities:\n").c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Clip Distances: {:d}", get_integer(GL_MAX_CLIP_DISTANCES)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Texture Units: {:d}", get_integer(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Uniform Blocks: {:d}", get_integer(GL_MAX_COMBINED_UNIFORM_BLOCKS)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max SSBO Bindings: {:d}", get_integer(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Vertex Attribs: {:d}", get_integer(GL_MAX_VERTEX_ATTRIBS)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Fragment Outputs: {:d}", get_integer(GL_MAX_DRAW_BUFFERS)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max Framebuffer Dimensions: {:d}x{:d}", get_integer(GL_MAX_FRAMEBUFFER_WIDTH), get_integer(GL_MAX_FRAMEBUFFER_HEIGHT)).c_str());
+	    ImGui::TextUnformatted(format_to_str("        Max MSAA Samples: {:d}", get_integer(GL_MAX_INTEGER_SAMPLES)).c_str());
+        ImGui::TextUnformatted(format_to_str("        Max Tesselation Patch Vertices: {:d}", get_integer(GL_MAX_PATCH_VERTICES)).c_str());
+    };
+
+    ImGui::Begin("Driver Info", &opened);
+    {
+        if(ImGui::BeginTabBar("Tab bar")){
+            if(ImGui::BeginTabItem("State")){
+                show_state_info();
+                ImGui::EndTabItem();
+            }
+
+            if(ImGui::BeginTabItem("Capabilities")){
+                show_capabilities_info();
+                ImGui::EndTabItem();
+            }
+
+            ImGui::EndTabBar();
+        }   
+    }
+    ImGui::End();
 }
