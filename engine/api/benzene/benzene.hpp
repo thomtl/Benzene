@@ -85,6 +85,11 @@ namespace benzene
             float shininess;
         };
 
+        struct Primitives {
+            static Mesh cube();
+            static Mesh quad();
+        };
+
         std::vector<Vertex> vertices;
         std::vector<uint32_t> indices;
         std::vector<Texture> textures;

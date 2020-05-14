@@ -1,7 +1,8 @@
 engine_include = include_directories('api/')
 engine_sources = files('core/main.cpp', 
     'core/model.cpp',
-    'core/utils.cpp')
+    'core/utils.cpp',
+    'core/primitives.cpp')
 engine_cpp_args = ['-Wall', '-Wextra', '-Wdeprecated-copy-dtor', '-Werror', '-Wno-unknown-pragmas', '-std=c++2a']
 engine_deps = [dependency('glfw3')]
 
