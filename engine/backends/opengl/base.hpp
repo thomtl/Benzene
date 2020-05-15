@@ -20,3 +20,27 @@ namespace benzene::opengl {
     constexpr bool debug = true;
     constexpr bool wireframe_rendering = true;
 } // !benzene::opengl
+
+namespace gl {
+    template<typename T>
+    struct type_to_enum { };
+
+    template<>
+    struct type_to_enum<unsigned int> { static constexpr GLenum value = GL_UNSIGNED_INT; };
+
+    template<>
+    struct type_to_enum<float> { static constexpr GLenum value = GL_FLOAT; };
+
+    template<typename T>
+    inline constexpr GLenum type_to_enum_v = type_to_enum<T>::value;
+
+    template<typename... Options>
+    void enable(Options&&... options){
+        (glEnable(options), ...);
+    }
+
+    template<typename... Options>
+    void disable(Options&&... options){
+        (glDisable(options), ...);
+    }
+}

@@ -105,19 +105,19 @@ namespace benzene::opengl
             glVertexArrayVertexBuffer(vao, 0, vbo, 0, sizeof(benzene::Mesh::Vertex));
             glVertexArrayElementBuffer(vao, ebo);
 
-            auto vertex_attribute = [&program, this](const std::string& name, size_t n, uintptr_t offset){
+            auto vertex_attribute = [&program, this](const std::string& name, GLenum type, size_t n, uintptr_t offset){
                 auto location = program.get_vector_attrib_location(name);
                 assert(location != -1);
 
                 glEnableVertexArrayAttrib(vao, location); // Enable the location, so it provides the dynamic data and not the static one
-                glVertexArrayAttribFormat(vao, location, n, GL_FLOAT, GL_FALSE, offset); // Tell it how to find the data
+                glVertexArrayAttribFormat(vao, location, n, type, GL_FALSE, offset); // Tell it how to find the data
                 glVertexArrayAttribBinding(vao, location, 0); // This attribute is in VBO 0, number must be thesame as the one in the glVertexArrayVertexBuffer call
             };
 
-            vertex_attribute("inPosition", 3, offsetof(benzene::Mesh::Vertex, pos));
-            vertex_attribute("inNormal", 3, offsetof(benzene::Mesh::Vertex, normal));
-            vertex_attribute("inTangent", 3, offsetof(benzene::Mesh::Vertex, tangent));
-            vertex_attribute("inUv", 2, offsetof(benzene::Mesh::Vertex, uv));
+            vertex_attribute("inPosition", gl::type_to_enum_v<float>, 3, offsetof(benzene::Mesh::Vertex, pos));
+            vertex_attribute("inNormal", gl::type_to_enum_v<float>, 3, offsetof(benzene::Mesh::Vertex, normal));
+            vertex_attribute("inTangent", gl::type_to_enum_v<float>, 3, offsetof(benzene::Mesh::Vertex, tangent));
+            vertex_attribute("inUv", gl::type_to_enum_v<float>, 2, offsetof(benzene::Mesh::Vertex, uv));
 
             for(const auto& texture : api_mesh.textures)
                 this->textures.emplace_back(texture);
@@ -125,7 +125,8 @@ namespace benzene::opengl
 
         void draw() const {
             this->bind();
-            glDrawElements(GL_TRIANGLES, n_indicies, GL_UNSIGNED_INT, 0);
+            
+            glDrawElements(GL_TRIANGLES, n_indicies, gl::type_to_enum_v<decltype(api_mesh->indices)::value_type>, 0);
         }
 
         void clean(){

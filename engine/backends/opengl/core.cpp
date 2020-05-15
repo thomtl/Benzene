@@ -82,15 +82,10 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	glfwGetWindowSize(window, &width, &height);
 	glViewport(0, 0, width, height);
 
+	gl::enable(GL_CULL_FACE, GL_DEPTH_TEST, GL_MULTISAMPLE, GL_FRAMEBUFFER_SRGB); // Enable Face-Culling, Depth-Testing, MSAA and Gamma correction
+
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
-
-	glEnable(GL_CULL_FACE);
-
-	glEnable(GL_DEPTH_TEST);
-	glEnable(GL_MULTISAMPLE);
-	glEnable(GL_FRAMEBUFFER_SRGB); // Enable automatic gamma-correction
-
 
 	prog.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
 		uniform mat4 modelMatrix;
@@ -236,7 +231,7 @@ Backend::~Backend(){
 void Backend::framebuffer_resize_callback(int width, int height){
 	glViewport(0, 0, width, height);
 
-	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10.0f));
+	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
