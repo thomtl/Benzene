@@ -17,8 +17,8 @@ void help_marker(const char* description){
     }
 }
 
-void Model::show_inspector(){
-    ImGui::Begin("Inspector");
+void Model::show_inspector(const std::string& window_name, bool* opened){
+    ImGui::Begin(window_name.c_str(), opened);
 
     if(ImGui::CollapsingHeader("Transform")){
         float step = 0.1, step_fast = 1.0;

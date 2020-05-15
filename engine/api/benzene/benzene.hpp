@@ -100,7 +100,7 @@ namespace benzene
     struct Model {
         Model(): pos{0, 0, 0}, rotation{0, 0, 0}, scale{1, 1, 1}, meshes{}, updated{false} {}
         void load_mesh_data_from_file(const std::string& folder, const std::string& file);
-        void show_inspector();
+        void show_inspector(const std::string& window_name, bool* opened = nullptr);
         void update(){
             this->updated = true;
         }

@@ -48,8 +48,6 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     //engine.add_model(&model2);
 
     engine.run([&](benzene::FrameData& data){
-        model.show_inspector();
-
         if(ImGui::BeginMainMenuBar()){
             if(ImGui::BeginMenu("File")){
                 ImGui::Checkbox("Debug", &data.display_debug_window);
