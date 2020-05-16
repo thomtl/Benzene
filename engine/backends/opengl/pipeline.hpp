@@ -147,7 +147,7 @@ namespace benzene::opengl
             glProgramUniform4f(handle, loc, vec.x, vec.y, vec.z, vec.w);
         }
 
-        int32_t get_vector_attrib_location(const std::string& name){
+        uint32_t get_vector_attrib_location(const std::string& name){
             auto ret = (int32_t)glGetAttribLocation(handle, name.c_str());
             if(ret == -1){
                 print("opengl: \"{:s}\" is not a valid vertex attribute\n", name);
