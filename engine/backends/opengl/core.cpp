@@ -89,15 +89,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 
-	this->renderer = new ForwardRenderer{};
+	this->renderer = new ForwardRenderer{width, height};
 	
-	renderer->program().set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
-
-	renderer->program().set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
-	renderer->program().set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
-	renderer->program().set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
-	renderer->program().set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
-
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
@@ -118,7 +111,7 @@ Backend::~Backend(){
 void Backend::framebuffer_resize_callback(int width, int height){
 	glViewport(0, 0, width, height);
 
-	renderer->program().set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	renderer->framebuffer_resize_callback((size_t)width, (size_t)height);
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){

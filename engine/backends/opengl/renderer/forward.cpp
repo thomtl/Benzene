@@ -2,7 +2,7 @@
 
 using namespace benzene::opengl;
 
-ForwardRenderer::ForwardRenderer(): main_program{} {
+ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
     main_program.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
 		uniform mat4 modelMatrix;
 		uniform mat4 viewMatrix;
@@ -108,6 +108,13 @@ ForwardRenderer::ForwardRenderer(): main_program{} {
 		})");
 
 	main_program.compile();
+
+	main_program.set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
+	main_program.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
+	main_program.set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
+	main_program.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
+
+	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 }
 
 ForwardRenderer::~ForwardRenderer(){
@@ -115,6 +122,10 @@ ForwardRenderer::~ForwardRenderer(){
 		model.clean();
 
 	main_program.clean();
+}
+
+void ForwardRenderer::framebuffer_resize_callback(size_t width, size_t height){
+	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 }
 
 void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){

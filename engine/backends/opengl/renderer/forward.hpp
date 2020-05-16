@@ -10,14 +10,12 @@ namespace benzene::opengl
 {
     class ForwardRenderer : public IRenderer {
         public:
-        ForwardRenderer();
+        ForwardRenderer(int width, int height);
         ~ForwardRenderer();
 
         void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data);
 
-        Program& program(){
-            return main_program;
-        }
+        void framebuffer_resize_callback(size_t width, size_t height);
 
         private:
         Program main_program;
