@@ -3,6 +3,7 @@
 #include <mutex>
 #include <thread>
 #include <regex>
+#include "renderer/forward.hpp"
 
 
 using namespace benzene::opengl;
@@ -87,119 +88,14 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 
-	prog.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
-		uniform mat4 modelMatrix;
-		uniform mat4 viewMatrix;
-		uniform mat4 projectionMatrix;
-		uniform mat3 normalMatrix;
-
-		struct Light {
-			vec3 position;
-			vec3 ambient;
-			vec3 diffuse;
-			vec3 specular;
-		};
-
-		uniform Light light;
-		uniform vec3 cameraPos;
-		
-		layout (location = 0) in vec3 inPosition;
-		layout (location = 1) in vec3 inNormal;
-		layout (location = 2) in vec3 inTangent;
-		layout (location = 3) in vec2 inUv;
-		
-		out VS_OUT {
-			vec3 fragPos;
-			vec3 tangentLightPos;
-			vec3 tangentCameraPos;
-			vec3 tangentFragPos;
-			vec2 uv;
-		} vs_out;
-
-		void main() {
-		   	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
-		
-			vec3 T = normalize(normalMatrix * inTangent);
-		   	vec3 N = normalize(normalMatrix * inNormal);
-			
-			T = normalize(T - dot(T, N) * N);
-
-			vec3 B = cross(N, T);
-
-			mat3 TBN = transpose(mat3(T, B, N));
-
-
-			vs_out.uv = inUv;
-			vs_out.fragPos = vec3(modelMatrix * vec4(inPosition, 1.0));
-			vs_out.tangentLightPos = TBN * light.position;
-			vs_out.tangentCameraPos = TBN * cameraPos;
-			vs_out.tangentFragPos = TBN * vs_out.fragPos;
-		})");
-
-	prog.add_shader(GL_FRAGMENT_SHADER, R"(#version 420 core
-		struct Material {
-			sampler2D diffuse;
-			sampler2D specular;
-			sampler2D normal;
-			float shininess;
-		};
-
-		struct Light {
-			vec3 position;
-			vec3 ambient;
-			vec3 diffuse;
-			vec3 specular;
-		};
-
-		uniform Light light;
-		uniform Material material;
-		
-		
-		in VS_OUT {
-			vec3 fragPos;
-			vec3 tangentLightPos;
-			vec3 tangentCameraPos;
-			vec3 tangentFragPos;
-			vec2 uv;
-		} fs_in;
-		
-		const bool blinn = false;
-
-		
-		out vec4 fragColour;
-		void main() {
-		   	vec3 normal = normalize(texture(material.normal, fs_in.uv).rgb * 2.0 - 1.0);
-		   	vec3 lightDir = normalize(light.position - fs_in.tangentFragPos);
-		   	vec3 cameraDir = normalize(fs_in.tangentCameraPos - fs_in.tangentFragPos);
-		   
-		   	vec3 ambient = light.ambient * texture(material.diffuse, fs_in.uv).rgb;
-		   
-		   	float diffuseIntensity = max(dot(normal, lightDir), 0.0);
-		   	vec3 diffuse = light.diffuse * diffuseIntensity * texture(material.diffuse, fs_in.uv).rgb;
-
-			float specularIntensity;
-			if (blinn){
-				vec3 halfwayDir = normalize(lightDir + cameraDir);
-				specularIntensity = pow(max(dot(normal, halfwayDir), 0.0), material.shininess);
-			} else {
-				vec3 reflectDir = reflect(-lightDir, normal);
-				specularIntensity = pow(max(dot(cameraDir, reflectDir), 0.0), material.shininess);
-			}
-			vec3 specular = light.specular * specularIntensity * texture(material.specular, fs_in.uv).rgb;
-		   
-		   	vec3 result = ambient + diffuse + specular;
-		   	fragColour = vec4(result, 1.0);
-		})");
-
-	prog.compile();
+	this->renderer = new ForwardRenderer{};
 	
-	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	renderer->program().set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 
-
-	prog.set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
-	prog.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
-	prog.set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
-	prog.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
+	renderer->program().set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
+	renderer->program().set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
+	renderer->program().set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
+	renderer->program().set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
 
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
@@ -209,20 +105,10 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	ImGui_ImplOpenGL3_Init();
 
 	print("opengl: Started OpenGL Backend\n");
-
-	//Framebuffer fb{(size_t)width, (size_t)height, {
-	//	{.type = Framebuffer::Attachment::Type::Colour, .format = GL_RGBA8, .i = 0},
-	//	{.type = Framebuffer::Attachment::Type::DepthStencil, .format = GL_DEPTH24_STENCIL8},
-	//}};
-	//fb.bind<GL_READ_FRAMEBUFFER>();
-	//fb.clean();
 }
 
 Backend::~Backend(){
-	for(auto& [id, model] : internal_models)
-		model.clean();
-
-	prog.clean();
+	delete this->renderer;
 
 	ImGui_ImplOpenGL3_Shutdown();
 	ImGui_ImplGlfw_Shutdown();
@@ -231,30 +117,19 @@ Backend::~Backend(){
 void Backend::framebuffer_resize_callback(int width, int height){
 	glViewport(0, 0, width, height);
 
-	prog.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	renderer->program().set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 }
 
 void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
 	auto time_begin = std::chrono::high_resolution_clock::now();
 
-	glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+	static double S = 0;
+	auto cameraPosition = glm::vec3{sin(S) * 20, 0.0f, cos(S) * 20};
+	S += 0.001;
+	renderer->program().set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
+	renderer->program().set_uniform("cameraPos", cameraPosition);
 
-	// First things first, create state of models that the backend understands
-	for(auto& [id, model] : models){
-		if(internal_models.count(id) == 0 || model->is_updated()){
-			internal_models[id].clean();
-			internal_models[id] = Model{*model, prog};
-		}
-	}
-
-	auto cameraPosition = glm::vec3{3.0f, 3.0f, 0.0f};
-	prog.set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
-	prog.set_uniform("cameraPos", cameraPosition);
-
-	for(const auto& [id, model] : internal_models)
-		model.draw();
-
+	renderer->draw(models);
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	this->frame_counter++;

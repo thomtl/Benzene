@@ -1,12 +1,12 @@
 #pragma once
 
-#include "base.hpp"
+#include "../base.hpp"
 
 #include <vector>
 #include <optional>
 #include <cmath>
 
-#include "pipeline.hpp"
+#include "../pipeline.hpp"
 #include "mesh.hpp"
 
 namespace benzene::opengl

@@ -19,6 +19,16 @@ namespace benzene::opengl {
     constexpr bool validation = true;
     constexpr bool debug = true;
     constexpr bool wireframe_rendering = true;
+
+    class Backend;
+    class Program;
+
+    class IRenderer {
+        public:
+        virtual ~IRenderer() {}
+        virtual void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models) = 0;
+        virtual Program& program() = 0;
+    };
 } // !benzene::opengl
 
 namespace gl {

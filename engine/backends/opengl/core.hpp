@@ -4,7 +4,7 @@
 
 #include <chrono>
 
-#include "model.hpp"
+#include "model/model.hpp"
 #include "pipeline.hpp"
 #include "framebuffer.hpp"
 
@@ -60,8 +60,7 @@ namespace benzene::opengl {
             this->fps_cap = fps;
         }
 
-        Program prog;
-        std::unordered_map<ModelId, opengl::Model> internal_models;
+        IRenderer* renderer;
 
         bool is_wireframe, fps_cap_enabled;
         float frame_time, fps, min_frame_time, max_frame_time;
