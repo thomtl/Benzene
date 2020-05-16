@@ -124,6 +124,11 @@ namespace benzene
 
     using ModelId = uint64_t;
 
+    struct FrameData {
+        bool should_exit, display_debug_window;
+        float delta_time;
+    };
+
     class IBackend {
         public:
         virtual ~IBackend() {}
@@ -131,15 +136,11 @@ namespace benzene
         virtual void mouse_button_callback(int button, bool state) = 0;
         virtual void mouse_pos_callback(double x, double y) = 0;
         virtual void mouse_scroll_callback(double xoffset, double yoffset) = 0;
-        virtual void frame_update(std::unordered_map<ModelId, Model*>& models) = 0;
+        virtual void frame_update(std::unordered_map<ModelId, Model*>& models, benzene::FrameData& frame_data) = 0;
         virtual void end_run() = 0;
         virtual void draw_debug_window() = 0;
         virtual void set_fps_cap(bool enabled, size_t fps = 60) = 0;
         virtual void imgui_update() = 0;
-    };
-
-    struct FrameData {
-        bool should_exit, display_debug_window;
     };
 
     class Instance {

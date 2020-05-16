@@ -51,6 +51,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	frame_time = 0.0f;
 	max_frame_time = 0.0f;
 	min_frame_time = 9999.0f;
+	last_frame = 0;
 	last_frame_times = {};
 	frame_counter = 0;
 	fps = 0;
@@ -120,16 +121,13 @@ void Backend::framebuffer_resize_callback(int width, int height){
 	renderer->program().set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
 }
 
-void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
+void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){
 	auto time_begin = std::chrono::high_resolution_clock::now();
+	auto time = glfwGetTime();
+	frame_data.delta_time = time - last_frame;
+	last_frame = time;
 
-	static double S = 0;
-	auto cameraPosition = glm::vec3{sin(S) * 20, 0.0f, cos(S) * 20};
-	S += 0.001;
-	renderer->program().set_uniform("viewMatrix", glm::lookAt(cameraPosition, glm::vec3{0, 0, 0}, glm::vec3{0.0f, 1.0f, 0.0f}));
-	renderer->program().set_uniform("cameraPos", cameraPosition);
-
-	renderer->draw(models);
+	renderer->draw(models, frame_data);
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	this->frame_counter++;

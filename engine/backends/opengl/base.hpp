@@ -26,7 +26,7 @@ namespace benzene::opengl {
     class IRenderer {
         public:
         virtual ~IRenderer() {}
-        virtual void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models) = 0;
+        virtual void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data) = 0;
         virtual Program& program() = 0;
     };
 } // !benzene::opengl

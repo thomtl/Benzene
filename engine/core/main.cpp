@@ -234,7 +234,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
             this->backend->draw_debug_window();
 
         ImGui::Render();
-        this->backend->frame_update(render_models);
+        this->backend->frame_update(render_models, frame_data);
 
         #ifdef BENZENE_OPENGL
         glfwSwapBuffers(window);

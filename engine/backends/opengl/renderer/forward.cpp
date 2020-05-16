@@ -117,7 +117,8 @@ ForwardRenderer::~ForwardRenderer(){
 	main_program.clean();
 }
 
-void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models){
+void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){
+	camera.process_input(frame_data.delta_time);
     // First things first, create state of models that the backend understands
     for(auto& [id, model] : models){
 		if(internal_models.count(id) == 0 || model->is_updated()){
@@ -128,6 +129,9 @@ void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>
 
     glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+	main_program.set_uniform("viewMatrix", camera.get_view_matrix());
+	main_program.set_uniform("cameraPos", camera.get_position());
 
     for(const auto& [id, object] : internal_models)
         object.draw();

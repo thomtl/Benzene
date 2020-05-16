@@ -18,7 +18,7 @@ namespace benzene::opengl {
         Backend(const char* application_name, GLFWwindow* window);
         ~Backend();
 
-        void frame_update(std::unordered_map<ModelId, benzene::Model*>& models);
+        void frame_update(std::unordered_map<ModelId, benzene::Model*>& models, benzene::FrameData& frame_data);
         void end_run();
 
         static void glfw_window_hints(){
@@ -63,7 +63,7 @@ namespace benzene::opengl {
         IRenderer* renderer;
 
         bool is_wireframe, fps_cap_enabled;
-        float frame_time, fps, min_frame_time, max_frame_time;
+        float last_frame, frame_time, fps, min_frame_time, max_frame_time;
         uint64_t fps_cap;
         size_t frame_counter;
         std::chrono::time_point<std::chrono::high_resolution_clock> last_frame_timestamp;
