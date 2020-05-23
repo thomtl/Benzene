@@ -77,10 +77,10 @@ void Texture::set_parameter(GLenum key, GLfloat value){
 
 DrawMesh::DrawMesh(const benzene::Mesh& api_mesh, Program& program): program{&program}, api_mesh{&api_mesh} {
     mesh = Mesh{api_mesh.indices, api_mesh.vertices, {
-        {.location = program.get_vector_attrib_location("inPosition"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, pos), .n = 3},
-        {.location = program.get_vector_attrib_location("inNormal"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, normal), .n = 3},
-        {.location = program.get_vector_attrib_location("inTangent"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, tangent), .n = 3},
-        {.location = program.get_vector_attrib_location("inUv"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, uv), .n = 2}
+        {.location = program.get_vertex_attrib_location("inPosition"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, pos), .n = 3},
+        {.location = program.get_vertex_attrib_location("inNormal"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, normal), .n = 3},
+        {.location = program.get_vertex_attrib_location("inTangent"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, tangent), .n = 3},
+        {.location = program.get_vertex_attrib_location("inUv"), .type = gl::type_to_enum_v<float>, .offset = offsetof(benzene::Mesh::Vertex, uv), .n = 2}
     }};
 
     for(const auto& texture : api_mesh.textures)

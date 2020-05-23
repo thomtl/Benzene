@@ -67,8 +67,7 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		GLint flags;
 		glGetIntegerv(GL_CONTEXT_FLAGS, &flags);
 		if(flags & GL_CONTEXT_FLAG_DEBUG_BIT){
-			glEnable(GL_DEBUG_OUTPUT);
-			glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			gl::enable(GL_DEBUG_OUTPUT, GL_DEBUG_OUTPUT_SYNCHRONOUS);
 
 			glDebugMessageCallback(glDebugOutput, nullptr);
 			glDebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DEBUG_SEVERITY_NOTIFICATION, 0, nullptr, GL_FALSE);
@@ -147,6 +146,15 @@ void Backend::imgui_update(){
 void Backend::end_run(){
 	glFinish();
 }
+
+void Backend::set_property(benzene::BackendProperties property, glm::vec4 v){
+	switch (property)
+	{
+		case benzene::BackendProperties::ClearColour: renderer->clear_colour = v;
+	}
+}
+
+#pragma region ImGui Drawing
 
 void Backend::draw_debug_window(){
 	ImGui::Begin("Benzene", NULL, ImGuiWindowFlags_MenuBar);
@@ -260,3 +268,5 @@ void Backend::show_driver_info_window(bool& opened){
     }
     ImGui::End();
 }
+
+#pragma endregion

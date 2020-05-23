@@ -96,7 +96,7 @@ namespace benzene
         Material material;
     };
 
-
+    using ModelId = uint64_t;
     struct Model {
         Model(): pos{0, 0, 0}, rotation{0, 0, 0}, scale{1, 1, 1}, meshes{}, updated{false} {}
         void load_mesh_data_from_file(const std::string& folder, const std::string& file);
@@ -122,25 +122,32 @@ namespace benzene
         bool updated;
     };
 
-    using ModelId = uint64_t;
-
     struct FrameData {
         bool should_exit, display_debug_window;
         float delta_time;
     };
 
+    enum class BackendProperties {
+        ClearColour  
+    };
+
     class IBackend {
         public:
         virtual ~IBackend() {}
+
+        virtual void frame_update(std::unordered_map<ModelId, Model*>& models, benzene::FrameData& frame_data) = 0;
+        virtual void end_run() = 0;
+        virtual void imgui_update() = 0;
+
+        virtual void set_property(BackendProperties property, glm::vec4 v) = 0;
+
         virtual void framebuffer_resize_callback(int width, int height) = 0;
         virtual void mouse_button_callback(int button, bool state) = 0;
         virtual void mouse_pos_callback(double x, double y) = 0;
         virtual void mouse_scroll_callback(double xoffset, double yoffset) = 0;
-        virtual void frame_update(std::unordered_map<ModelId, Model*>& models, benzene::FrameData& frame_data) = 0;
-        virtual void end_run() = 0;
+        
         virtual void draw_debug_window() = 0;
         virtual void set_fps_cap(bool enabled, size_t fps = 60) = 0;
-        virtual void imgui_update() = 0;
     };
 
     class Instance {
@@ -155,9 +162,12 @@ namespace benzene
 
         ModelId add_model(Model* model);
 
+        void set_property(BackendProperties property, glm::vec4 v);
+
         private:
         GLFWwindow* window;
-        std::unique_ptr<IBackend> backend; 
+        std::unique_ptr<IBackend> backend;
+
         size_t width, height;
         struct IdGen {
             IdGen(): curr{0} {}

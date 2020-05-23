@@ -32,6 +32,8 @@ namespace benzene::opengl {
                 glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         }
 
+        void set_property(BackendProperties property, glm::vec4 v);
+
         private:
         void framebuffer_resize_callback(int width, int height);
         void imgui_update();

@@ -256,3 +256,7 @@ benzene::ModelId benzene::Instance::add_model(benzene::Model* model){
     this->render_models[id] = model;
     return id;
 }
+
+void benzene::Instance::set_property(benzene::BackendProperties property, glm::vec4 v){
+    this->backend->set_property(property, v);
+}

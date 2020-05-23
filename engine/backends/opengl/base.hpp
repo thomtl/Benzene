@@ -28,6 +28,7 @@ namespace benzene::opengl {
         virtual ~IRenderer() {}
         virtual void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data) = 0;
         virtual void framebuffer_resize_callback(size_t width, size_t height) = 0;
+        glm::vec4 clear_colour;
     };
 } // !benzene::opengl
 

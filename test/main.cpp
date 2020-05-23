@@ -39,13 +39,18 @@ int main([[maybe_unused]] int argc, [[maybe_unused]] char const *argv[])
     }
 
     /*benzene::Model model2{};
-    model2.load_mesh_data_from_file("../engine/resources/", "chalet.obj");
+    model2.load_mesh_data_from_file("../engine/resources/rungholt/", "rungholt.obj");
     model2.pos = {0, 0, 0};
     model2.scale = {1, 1, 1};
-    for(auto& mesh : model2.meshes)
-        mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/chalet.jpg", "diffuse"));*/
+    for(auto& mesh : model2.meshes){
+        //mesh.textures.push_back(benzene::Texture::load_from_file("../engine/resources/rungholt/rungholt-RGBA.png", "diffuse", benzene::Texture::Gamut::Linear));
+        mesh.textures.push_back(benzene::Texture::load_from_colour(glm::vec3{1}, "diffuse"));
+        mesh.textures.push_back(benzene::Texture::load_from_colour(glm::vec3{1}, "specular"));
+        mesh.textures.push_back(benzene::Texture::load_from_colour(glm::vec3{0, 0, 1}, "normal"));
+    }*/
 
     //engine.add_model(&model2);
+    engine.set_property(benzene::BackendProperties::ClearColour, {0, 0, 0, 1});
 
     engine.run([&](benzene::FrameData& data){
         if(ImGui::BeginMainMenuBar()){

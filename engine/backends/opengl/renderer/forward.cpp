@@ -114,7 +114,7 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 	main_program.set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
 	main_program.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
 
-	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10000.0f));
 }
 
 ForwardRenderer::~ForwardRenderer(){
@@ -138,7 +138,7 @@ void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>
 		}
     }
 
-    glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+    glClearColor(this->clear_colour.r, this->clear_colour.g, this->clear_colour.b, this->clear_colour.a);
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
 	main_program.set_uniform("viewMatrix", camera.get_view_matrix());
