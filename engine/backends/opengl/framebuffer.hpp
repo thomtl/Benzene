@@ -4,28 +4,24 @@
 
 namespace benzene::opengl
 {
-    // TODO: Support RBOs (Render Buffer Object)
     class Framebuffer {
         public:
         struct Attachment {
+            enum class Container { Texture, Renderbuffer };
             enum class Type { Colour, Depth, Stencil, DepthStencil };
+            Container container;
             Type type;
             GLenum format;
             int i = 0;
+            bool multisampling = false;
+            int samples = 1;
         };
 
         Framebuffer(size_t width, size_t height, const std::vector<Attachment>& attachments){
             glCreateFramebuffers(1, &handle);
 
-            images.resize(attachments.size(), 0);
-            glCreateTextures(GL_TEXTURE_2D, images.size(), images.data());
-
-            for(size_t i = 0; i < images.size(); i++){
-                glTextureStorage2D(images[i], 1, attachments[i].format, width, height);
-
-                glTextureParameteri(images[i], GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-                glTextureParameteri(images[i], GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-
+            buffers.resize(attachments.size());
+            for(size_t i = 0; i < buffers.size(); i++){
                 GLenum attachment = 0;
                 switch (attachments[i].type){
                     case Attachment::Type::Colour: attachment = GL_COLOR_ATTACHMENT0 + attachments[i].i; break;
@@ -34,7 +30,16 @@ namespace benzene::opengl
                     case Attachment::Type::DepthStencil: attachment = GL_DEPTH_STENCIL_ATTACHMENT; break;
                 }
 
-                glNamedFramebufferTexture(handle, attachment, images[i], 0);
+                GLuint buffer = 0;
+                if(attachments[i].container == Attachment::Container::Texture){
+                    buffer = this->create_texture_attachment(width, height, attachments[i]);
+                    glNamedFramebufferTexture(handle, attachment, buffer, 0);
+                } else if(attachments[i].container == Attachment::Container::Renderbuffer){
+                    buffer = this->create_renderbuffer_attachment(width, height, attachments[i]);
+                    glNamedFramebufferRenderbuffer(handle, attachment, GL_RENDERBUFFER, buffer);
+                }
+                
+                buffers[i] = {attachments[i], buffer};
             }
 
             if constexpr (debug)
@@ -49,16 +54,47 @@ namespace benzene::opengl
         }
 
         void clean(){
-            glDeleteTextures(images.size(), images.data());
+            for(auto& [attachment, buffer] : buffers){
+                if(attachment.container == Attachment::Container::Texture)
+                    glDeleteTextures(1, &buffer);
+                else if(attachment.container == Attachment::Container::Renderbuffer)
+                    glDeleteRenderbuffers(1, &buffer);
+            }
+
             glDeleteFramebuffers(1, &handle);
         }
 
-        uint32_t operator()(){
+        GLuint operator()(){
             return handle;
         }
 
         private:
-        std::vector<uint32_t> images;
-        uint32_t handle;
+        GLuint create_texture_attachment(size_t width, size_t height, const Attachment& attachment){
+            GLuint texture = 0;
+            glCreateTextures(GL_TEXTURE_2D, 1, &texture);
+            if(!attachment.multisampling)
+                glTextureStorage2D(texture, 1, attachment.format, width, height);
+            else
+                glTextureStorage2DMultisample(texture, attachment.samples, attachment.format, width, height, false);
+            
+            glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+            glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+
+            return texture;
+        }
+
+        GLuint create_renderbuffer_attachment(size_t width, size_t height, const Attachment& attachment){
+            GLuint renderbuffer = 0;
+            glCreateRenderbuffers(1, &renderbuffer);
+            if(!attachment.multisampling)
+                glNamedRenderbufferStorage(renderbuffer, attachment.format, width, height);
+            else
+                glNamedRenderbufferStorageMultisample(renderbuffer, attachment.samples, attachment.format, width, height);
+
+            return renderbuffer;
+        }
+
+        std::vector<std::pair<Attachment, GLuint>> buffers;
+        GLuint handle;
     };
 } // namespace benzene::opengl
