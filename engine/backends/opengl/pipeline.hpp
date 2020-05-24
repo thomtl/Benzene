@@ -147,13 +147,14 @@ namespace benzene::opengl
             glProgramUniform4f(handle, loc, vec.x, vec.y, vec.z, vec.w);
         }
 
-        uint32_t get_vertex_attrib_location(const std::string& name){
-            auto ret = (int32_t)glGetAttribLocation(handle, name.c_str());
-            if(ret == -1){
-                print("opengl: \"{:s}\" is not a valid vertex attribute\n", name);
-                throw std::runtime_error("opengl: Couldn't find vertex attribute");
-            }
-            return ret;
+        GLint get_vertex_attrib_location(const std::string& name){
+            auto location = vertex_attribute_location_cache.find(name);
+            if(location != vertex_attribute_location_cache.end())
+                return location->second;
+
+            auto loc = glGetAttribLocation(handle, name.c_str());
+            vertex_attribute_location_cache[name] = loc;
+            return loc;
         }
 
         void clean(){
@@ -169,17 +170,18 @@ namespace benzene::opengl
         }
 
         private:
-        uint32_t get_uniform_location(const std::string& name){
-            auto ret = glGetUniformLocation(handle, name.c_str());
-            if(ret == -1){
-                print("opengl: \"{:s}\" is not a valid uniform\n", name);
-                throw std::runtime_error("opengl: Couldn't find uniform");
-            }
+        GLint get_uniform_location(const std::string& name){
+            auto location = uniform_location_cache.find(name);
+            if(location != uniform_location_cache.end())
+                return location->second;
 
-            return ret;
+            auto loc = glGetUniformLocation(handle, name.c_str());
+            uniform_location_cache[name] = loc;
+            return loc;
         }
         
         uint32_t handle;
         std::vector<Shader> shaders;
+        std::unordered_map<std::string, GLint> uniform_location_cache, vertex_attribute_location_cache;
     };
 } // namespace benzene::opengl

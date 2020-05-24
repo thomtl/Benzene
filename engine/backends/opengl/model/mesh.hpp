@@ -5,7 +5,7 @@
 namespace benzene::opengl
 {
     struct VertexAttribute {
-        GLuint location;
+        GLint location;
         GLenum type;
         uintptr_t offset;
         uint32_t n = 1;
