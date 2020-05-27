@@ -47,7 +47,7 @@ static void APIENTRY glDebugOutput(GLenum source, GLenum type, GLuint id, GLenum
 	}
 }
 
-Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* window): is_wireframe{false} {
+Backend::Backend([[maybe_unused]] const char* application_name): is_wireframe{false} {
 	frame_time = 0.0f;
 	max_frame_time = 0.0f;
 	min_frame_time = 9999.0f;
@@ -79,8 +79,8 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 		return;
 	}
 
-	int width, height;
-	glfwGetWindowSize(window, &width, &height);
+	size_t width = Display::instance().get_width();
+	size_t height = Display::instance().get_height();
 	glViewport(0, 0, width, height);
 
 	gl::enable(GL_CULL_FACE, GL_DEPTH_TEST, GL_MULTISAMPLE, GL_FRAMEBUFFER_SRGB); // Enable Face-Culling, Depth-Testing, MSAA and Gamma correction
@@ -88,13 +88,13 @@ Backend::Backend([[maybe_unused]] const char* application_name, GLFWwindow* wind
 	glCullFace(GL_BACK);
 	glFrontFace(GL_CCW);
 
-	this->renderer = new ForwardRenderer{width, height};
+	this->renderer = new ForwardRenderer{(int)width, (int)height};
 	
 	IMGUI_CHECKVERSION();
 	ImGui::CreateContext();
 	ImGui::StyleColorsDark();
 
-	ImGui_ImplGlfw_InitForOpenGL(window, true);
+	ImGui_ImplGlfw_InitForOpenGL(Display::instance()(), true);
 	ImGui_ImplOpenGL3_Init();
 
 	print("opengl: Started OpenGL Backend\n");

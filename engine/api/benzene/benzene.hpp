@@ -165,7 +165,6 @@ namespace benzene
         void set_property(BackendProperties property, glm::vec4 v);
 
         private:
-        GLFWwindow* window;
         std::unique_ptr<IBackend> backend;
 
         size_t width, height;

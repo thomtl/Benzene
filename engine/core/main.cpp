@@ -8,6 +8,7 @@
 #ifdef BENZENE_OPENGL
 #include "../backends/opengl/core.hpp"
 #endif
+#include "display.hpp"
 
 #include "format.hpp"
 
@@ -173,58 +174,28 @@ benzene::Instance::Instance(const char* name, size_t width, size_t height): widt
 
     glfwInit();
 
-    #ifdef BENZENE_VULKAN
+    #if defined(BENZENE_VULKAN)
     vulkan::Backend::glfw_window_hints();
-    #endif
-
-    #ifdef BENZENE_OPENGL
+    #elif defined(BENZENE_OPENGL)
     opengl::Backend::glfw_window_hints();
     #endif
-
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_TRUE);
-    this->window = glfwCreateWindow(this->width, this->height, name, nullptr, nullptr);
-    if(!this->window){
-        const char* err;
-        glfwGetError(&err);
-        print("benzene: Couldn't create GLFW window, error {:s}\n", err);
-        return;
-    }
+    auto& display = Display::instance();
+    display.set_hint(GLFW_RESIZABLE, GLFW_TRUE);
+    display.create_window({name}, width, height);
     
-    #ifdef BENZENE_OPENGL
-    glfwMakeContextCurrent(this->window);
+    #if defined(BENZENE_VULKAN)
+    this->backend = std::make_unique<vulkan::Backend>(name);
+    #elif defined(BENZENE_OPENGL)
+    display.make_context_current();
+    this->backend = std::make_unique<opengl::Backend>(name);
     #endif
 
-    glfwSetFramebufferSizeCallback(window, [](GLFWwindow* window, int width, int height){
-        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
-        backend.framebuffer_resize_callback(width, height);
-    });
-    glfwSetMouseButtonCallback(window, [](GLFWwindow* window, int button, int action, [[maybe_unused]] int mods){
-        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
-        backend.mouse_button_callback(button, action);
-    });
-    glfwSetCursorPosCallback(window, [](GLFWwindow* window, double x, double y){
-        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
-        backend.mouse_pos_callback(x, y);
-    });
-    glfwSetScrollCallback(window, [](GLFWwindow* window, double xoffset, double yoffset){
-        auto& backend = *(IBackend*)glfwGetWindowUserPointer(window);
-        backend.mouse_scroll_callback(xoffset, yoffset);
-    });
-    
-    #ifdef BENZENE_VULKAN
-    this->backend = std::make_unique<vulkan::Backend>(name, this->window);
-    #endif
-
-    #ifdef BENZENE_OPENGL
-    this->backend = std::make_unique<opengl::Backend>(name, this->window);
-    #endif
-
-    glfwSetWindowUserPointer(window, (void*)&(*this->backend));
+    display.set_window_backend(this->backend.get());
 }
 
 void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
     FrameData frame_data{};
-    while(!glfwWindowShouldClose(window) && !frame_data.should_exit){
+    while(!glfwWindowShouldClose(Display::instance()()) && !frame_data.should_exit){
         glfwPollEvents();
         this->backend->imgui_update();
         ImGui::NewFrame();
@@ -237,7 +208,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
         this->backend->frame_update(render_models, frame_data);
 
         #ifdef BENZENE_OPENGL
-        glfwSwapBuffers(window);
+        Display::instance().swap_buffers();
         #endif
     }
     this->backend->end_run();
@@ -245,8 +216,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
 
 benzene::Instance::~Instance(){
     delete this->backend.release();
-
-    glfwDestroyWindow(window);
+    Display::instance().clean();
 
     glfwTerminate();
 }

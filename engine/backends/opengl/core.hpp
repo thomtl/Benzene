@@ -8,6 +8,8 @@
 #include "pipeline.hpp"
 #include "framebuffer.hpp"
 
+#include "../../core/display.hpp"
+
 #include "../../libs/imgui/imgui.h"
 #include "libs/imgui/imgui_impl_glfw.h"
 #include "libs/imgui/imgui_impl_opengl3.h"
@@ -15,21 +17,22 @@
 namespace benzene::opengl {
     class Backend : public IBackend {
         public:
-        Backend(const char* application_name, GLFWwindow* window);
+        Backend(const char* application_name);
         ~Backend();
 
         void frame_update(std::unordered_map<ModelId, benzene::Model*>& models, benzene::FrameData& frame_data);
         void end_run();
 
         static void glfw_window_hints(){
-            glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_API);
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4); // TODO: Figure out the maximum version
-            glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
-            glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-            glfwWindowHint(GLFW_SAMPLES, 4);
-
+            auto& instance = Display::instance();
+            instance.set_hint(GLFW_CLIENT_API, GLFW_OPENGL_API);
+            instance.set_hint(GLFW_CONTEXT_VERSION_MAJOR, 4); // TODO: Figure out the maximum version
+            instance.set_hint(GLFW_CONTEXT_VERSION_MINOR, 2);
+            instance.set_hint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+            instance.set_hint(GLFW_SAMPLES, 4);
+            
             if constexpr (validation)
-                glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
+                instance.set_hint(GLFW_OPENGL_DEBUG_CONTEXT, GL_TRUE);
         }
 
         void set_property(BackendProperties property, glm::vec4 v);
