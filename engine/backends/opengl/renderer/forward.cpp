@@ -4,10 +4,10 @@ using namespace benzene::opengl;
 
 ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
     main_program.add_shader(GL_VERTEX_SHADER, R"(#version 420 core
-		uniform mat4 modelMatrix;
+		#extension GL_ARB_shader_storage_buffer_object : require
+
 		uniform mat4 viewMatrix;
 		uniform mat4 projectionMatrix;
-		uniform mat3 normalMatrix;
 
 		struct Light {
 			vec3 position;
@@ -18,6 +18,15 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 
 		uniform Light light;
 		uniform vec3 cameraPos;
+
+		struct InstanceData {
+			mat4 modelMatrix;
+			mat4 normalMatrix;
+		};
+
+		layout (std140, binding = 0) buffer PerInstanceData {
+			InstanceData data[];
+		} instanceData;
 		
 		layout (location = 0) in vec3 inPosition;
 		layout (location = 1) in vec3 inNormal;
@@ -33,10 +42,10 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 		} vs_out;
 
 		void main() {
-		   	gl_Position = projectionMatrix * viewMatrix * modelMatrix * vec4(inPosition.xyz, 1.0);
+		   	gl_Position = projectionMatrix * viewMatrix * instanceData.data[gl_InstanceID].modelMatrix * vec4(inPosition.xyz, 1.0);
 		
-			vec3 T = normalize(normalMatrix * inTangent);
-		   	vec3 N = normalize(normalMatrix * inNormal);
+			vec3 T = normalize(mat3(instanceData.data[gl_InstanceID].normalMatrix) * inTangent);
+		   	vec3 N = normalize(mat3(instanceData.data[gl_InstanceID].normalMatrix) * inNormal);
 			
 			T = normalize(T - dot(T, N) * N);
 
@@ -46,7 +55,7 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 
 
 			vs_out.uv = inUv;
-			vs_out.fragPos = vec3(modelMatrix * vec4(inPosition, 1.0));
+			vs_out.fragPos = vec3(instanceData.data[gl_InstanceID].modelMatrix * vec4(inPosition, 1.0));
 			vs_out.tangentLightPos = TBN * light.position;
 			vs_out.tangentCameraPos = TBN * cameraPos;
 			vs_out.tangentFragPos = TBN * vs_out.fragPos;
@@ -118,23 +127,23 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 }
 
 ForwardRenderer::~ForwardRenderer(){
-    for(auto& [id, model] : internal_models)
+    for(auto& [id, model] : internal_batches)
 		model.clean();
 
 	main_program.clean();
 }
 
 void ForwardRenderer::framebuffer_resize_callback(size_t width, size_t height){
-	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 100.0f));
+	main_program.set_uniform("projectionMatrix", glm::perspective(glm::radians(45.0f), (float)width / height, 0.1f, 10000.0f));
 }
 
-void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){
+void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Batch*>& batches, benzene::FrameData& frame_data){
 	camera.process_input(frame_data.delta_time);
-    // First things first, create state of models that the backend understands
-    for(auto& [id, model] : models){
-		if(internal_models.count(id) == 0 || model->is_updated()){
-		    internal_models[id].clean();
-			internal_models[id] = Model{*model, main_program};
+    // First things first, create state of batches that the backend understands
+    for(auto& [id, batch] : batches){
+		if(internal_batches.count(id) == 0 || batch->is_updated()){
+		    internal_batches[id].clean();
+			internal_batches[id] = Batch{*batch, main_program};
 		}
     }
 
@@ -144,6 +153,6 @@ void ForwardRenderer::draw(std::unordered_map<benzene::ModelId, benzene::Model*>
 	main_program.set_uniform("viewMatrix", camera.get_view_matrix());
 	main_program.set_uniform("cameraPos", camera.get_position());
 
-    for(const auto& [id, object] : internal_models)
+    for(const auto& [id, object] : internal_batches)
         object.draw();
 };

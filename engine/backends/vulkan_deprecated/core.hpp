@@ -45,7 +45,7 @@ namespace benzene::vulkan {
         }
         glm::vec3 pos;
         
-        Model* model;
+        Batch* model;
         VertexBuffer vertices;
         IndexBuffer indices;
 
@@ -62,7 +62,7 @@ namespace benzene::vulkan {
         Backend(const char* application_name, GLFWwindow* window);
         ~Backend();
 
-        void frame_update(std::unordered_map<ModelId, Model*>& models);
+        void frame_update(std::unordered_map<ModelId, Batch*>& models);
         void end_run();
 
         static void glfw_window_hints(){

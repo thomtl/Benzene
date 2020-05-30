@@ -1,4 +1,4 @@
-#include "model.hpp"
+#include "batch.hpp"
 
 using namespace benzene::opengl;
 
@@ -105,41 +105,59 @@ void DrawMesh::bind() const {
 
     program->bind();
     program->set_uniform("material.shininess", api_mesh->material.shininess);
+
+    mesh.bind();
+}
+
+gl::DrawCommand DrawMesh::draw_command() const {
+    return mesh.draw_command();
 }
 
 #pragma endregion
 
 #pragma region Model
 
-Model::Model(benzene::Model& model, Program& program): model{&model}, program{&program} {
-    for(auto& mesh : model.meshes)
+Batch::Batch(benzene::Batch& batch, Program& program): batch{&batch}, program{&program} {
+    per_instance_buffer = Buffer<GL_SHADER_STORAGE_BUFFER>(batch.transforms.size() * sizeof(gl::InstanceData), nullptr, GL_DYNAMIC_STORAGE_BIT | GL_MAP_WRITE_BIT | GL_MAP_PERSISTENT_BIT | GL_MAP_COHERENT_BIT);
+    for(auto& mesh : batch.meshes)
 		meshes.emplace_back(mesh, program);
 }
 
-void Model::clean(){
+void Batch::clean(){
     for(auto& mesh : meshes)
         mesh.clean();
 }
 
-void Model::draw() const {
-    auto translate = glm::translate(glm::mat4{1.0f}, model->pos);
-	auto scale = glm::scale(glm::mat4{1.0f}, model->scale);
-    auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(model->rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
-	rotate = glm::rotate(rotate, glm::radians(model->rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
-	rotate = glm::rotate(rotate, glm::radians(model->rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
+void Batch::draw() const {
+    auto* instance_data = (gl::InstanceData*)per_instance_buffer.map();
+    for(size_t i = 0; i < batch->transforms.size(); i++){
+        auto& transform = batch->transforms[i];
+        auto translate = glm::translate(glm::mat4{1.0f}, transform.pos);
+	    auto scale = glm::scale(glm::mat4{1.0f}, transform.scale);
+        auto rotate = glm::rotate(glm::mat4{1.0f}, glm::radians(transform.rotation.y), glm::vec3{0.0f, 1.0f, 0.0f});
+	    rotate = glm::rotate(rotate, glm::radians(transform.rotation.z), glm::vec3{0.0f, 0.0f, 1.0f});
+	    rotate = glm::rotate(rotate, glm::radians(transform.rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
             
-    auto model_matrix = translate * rotate * scale;
-    auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
+        auto model_matrix = translate * rotate * scale;
+        auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
 
-    program->set_uniform("modelMatrix", model_matrix);
-    program->set_uniform("normalMatrix", normal_matrix);
+        instance_data[i].model_matrix = model_matrix;
+        instance_data[i].normal_matrix = normal_matrix;
+    }
 
-    for(const auto& mesh : meshes)
-        mesh.draw();
+    per_instance_buffer.bind_base(0);
+
+    for(const auto& mesh : meshes){
+        auto cmd = mesh.draw_command();
+        cmd.instance_count = batch->transforms.size();
+        
+        mesh.bind();
+        gl::draw<uint32_t>(cmd);
+    }
 }
 
-const benzene::Model& Model::api_handle() const {
-    return *model;
+const benzene::Batch& Batch::api_handle() const {
+    return *batch;
 }        
 
 #pragma endregion

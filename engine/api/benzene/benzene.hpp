@@ -97,10 +97,10 @@ namespace benzene
     };
 
     using ModelId = uint64_t;
-    struct Model {
-        Model(): pos{0, 0, 0}, rotation{0, 0, 0}, scale{1, 1, 1}, meshes{}, updated{false} {}
+    struct Batch {
+        Batch(): transforms{}, meshes{}, updated{false} {}
         void load_mesh_data_from_file(const std::string& folder, const std::string& file);
-        void show_inspector(const std::string& window_name, bool* opened = nullptr);
+        void show_inspector(const std::string& window_name, bool* opened = nullptr, size_t i = 0);
         void update(){
             this->updated = true;
         }
@@ -113,10 +113,13 @@ namespace benzene
                 return false;
             }
         }
-
-        glm::vec3 pos;
-        glm::vec3 rotation;
-        glm::vec3 scale;
+        struct Transform {
+            glm::vec3 pos;
+            glm::vec3 rotation;
+            glm::vec3 scale;
+        };
+        
+        std::vector<Transform> transforms;
         std::vector<Mesh> meshes;
         private:
         bool updated;
@@ -135,7 +138,7 @@ namespace benzene
         public:
         virtual ~IBackend() {}
 
-        virtual void frame_update(std::unordered_map<ModelId, Model*>& models, benzene::FrameData& frame_data) = 0;
+        virtual void frame_update(std::unordered_map<ModelId, Batch*>& batches, benzene::FrameData& frame_data) = 0;
         virtual void end_run() = 0;
         virtual void imgui_update() = 0;
 
@@ -160,7 +163,7 @@ namespace benzene
             return *backend;
         }
 
-        ModelId add_model(Model* model);
+        ModelId add_batch(Batch* model);
 
         void set_property(BackendProperties property, glm::vec4 v);
 
@@ -177,7 +180,7 @@ namespace benzene
             private:
             uint64_t curr;
         } id_gen;
-        std::unordered_map<ModelId, Model*> render_models;
+        std::unordered_map<ModelId, Batch*> render_batches;
     };
 } // namespace benzene
 

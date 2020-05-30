@@ -26,7 +26,7 @@ namespace benzene::opengl {
     class IRenderer {
         public:
         virtual ~IRenderer() {}
-        virtual void draw(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data) = 0;
+        virtual void draw(std::unordered_map<benzene::ModelId, benzene::Batch*>& batches, benzene::FrameData& frame_data) = 0;
         virtual void framebuffer_resize_callback(size_t width, size_t height) = 0;
         glm::vec4 clear_colour;
     };
@@ -54,4 +54,24 @@ namespace gl {
     void disable(Options&&... options){
         (glDisable(options), ...);
     }
+    
+    struct DrawCommand {
+        uint32_t instance_count;
+        uint32_t base_instance;
+
+        uint32_t first_index;
+        uint32_t index_count;
+
+        uint32_t base_vertex;
+    };
+    
+    template<typename IndexType, GLenum draw_mode = GL_TRIANGLES>
+    void draw(const DrawCommand& cmd){
+        glDrawElementsInstancedBaseVertexBaseInstance(draw_mode, cmd.index_count, gl::type_to_enum_v<IndexType>, (const void*)(uintptr_t)cmd.first_index, cmd.instance_count, cmd.base_vertex, cmd.base_instance);
+    }
+
+    struct InstanceData {
+        glm::mat4 model_matrix;
+        glm::mat4 normal_matrix;
+    };
 }

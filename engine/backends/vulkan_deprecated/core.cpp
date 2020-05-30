@@ -163,7 +163,7 @@ Backend::~Backend(){
     this->instance.instance.destroy();
 }
 
-void Backend::frame_update(std::unordered_map<ModelId, Model*>& models){
+void Backend::frame_update(std::unordered_map<ModelId, Batch*>& models){
     auto time_begin = std::chrono::high_resolution_clock::now();
 
     // First things first, create state of models that the backend understands

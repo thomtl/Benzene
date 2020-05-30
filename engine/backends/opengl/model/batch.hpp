@@ -7,6 +7,7 @@
 #include <cmath>
 
 #include "../pipeline.hpp"
+#include "../buffer.hpp"
 #include "mesh.hpp"
 
 namespace benzene::opengl
@@ -41,10 +42,11 @@ namespace benzene::opengl
         void clean();
 
         void draw() const;
+        void bind() const;
+        gl::DrawCommand draw_command() const;
+
 
         private:
-        void bind() const;
-
         Mesh<uint32_t, benzene::Mesh::Vertex> mesh;
         std::vector<opengl::Texture> textures;
 
@@ -52,18 +54,19 @@ namespace benzene::opengl
         const benzene::Mesh* api_mesh;
     };
 
-    class Model {
+    class Batch {
         public:
-        Model() {}
-        Model(benzene::Model& model, Program& program);
+        Batch() {}
+        Batch(benzene::Batch& batch, Program& program);
         void clean();
 
         void draw() const;
-        const benzene::Model& api_handle() const;
+        const benzene::Batch& api_handle() const;
 
         private:
-        benzene::Model* model;
+        benzene::Batch* batch;
         Program* program;
+        mutable Buffer<GL_SHADER_STORAGE_BUFFER> per_instance_buffer;
         std::vector<opengl::DrawMesh> meshes;
     };
 } // namespace benzene::opengl

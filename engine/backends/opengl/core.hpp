@@ -4,7 +4,7 @@
 
 #include <chrono>
 
-#include "model/model.hpp"
+#include "model/batch.hpp"
 #include "pipeline.hpp"
 #include "framebuffer.hpp"
 
@@ -20,7 +20,7 @@ namespace benzene::opengl {
         Backend(const char* application_name);
         ~Backend();
 
-        void frame_update(std::unordered_map<ModelId, benzene::Model*>& models, benzene::FrameData& frame_data);
+        void frame_update(std::unordered_map<ModelId, benzene::Batch*>& models, benzene::FrameData& frame_data);
         void end_run();
 
         static void glfw_window_hints(){

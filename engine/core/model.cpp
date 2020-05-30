@@ -17,7 +17,7 @@ void help_marker(const char* description){
     }
 }
 
-void Model::show_inspector(const std::string& window_name, bool* opened){
+void Batch::show_inspector(const std::string& window_name, bool* opened, size_t i){
     ImGui::Begin(window_name.c_str(), opened);
 
     if(ImGui::CollapsingHeader("Transform")){
@@ -25,15 +25,15 @@ void Model::show_inspector(const std::string& window_name, bool* opened){
         ImGui::Indent();
         ImGui::Text("Position: ");
         ImGui::SameLine(0, 0);
-        ImGui::InputScalarN("##Position", ImGuiDataType_Float, &pos.x, 3, &step, &step_fast);
+        ImGui::InputScalarN("##Position", ImGuiDataType_Float, &transforms[i].pos.x, 3, &step, &step_fast);
     
         ImGui::Text("Rotation: ");
         ImGui::SameLine(0, 0);
-        ImGui::InputScalarN("##Rotation", ImGuiDataType_Float, &rotation.x, 3, &step, &step_fast);
+        ImGui::InputScalarN("##Rotation", ImGuiDataType_Float, &transforms[i].rotation.x, 3, &step, &step_fast);
 
         ImGui::Text("Scale:    ");
         ImGui::SameLine(0, 0);
-        ImGui::InputScalarN("##Scale", ImGuiDataType_Float, &scale.x, 3, &step, &step_fast);
+        ImGui::InputScalarN("##Scale", ImGuiDataType_Float, &transforms[i].scale.x, 3, &step, &step_fast);
         ImGui::Unindent();
     }
 

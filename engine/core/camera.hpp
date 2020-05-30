@@ -11,7 +11,7 @@ namespace benzene
 {
     class Camera {
         public:
-        Camera(): pos{0, 0, 3}, front{0, 0, -1}, up{0, 1, 0} {}
+        Camera(): pos{0, 5, 70}, front{0, 0, -1}, up{0, 1, 0} {}
 
         glm::mat4 get_view_matrix() const {
             return glm::lookAt(pos, pos + front, up);

@@ -18,8 +18,8 @@ benzene::Texture benzene::Texture::load_from_file(const std::string& filename, c
 
     auto* data = stbi_load(filename.c_str(), &width, &height, &channels, STBI_default);
     if(!data) {
-        print("vulkan/texture: Failed to load texture data, error: {:s}\n", stbi_failure_reason());
-        throw std::runtime_error("vulkan/texture: Failed to load image data from file");
+        print("benzene/texture: Failed to load texture data, error: {:s}\n", stbi_failure_reason());
+        throw std::runtime_error("benzene/texture: Failed to load image data from file");
     }
 
     Texture tex{};
@@ -53,7 +53,7 @@ benzene::Texture benzene::Texture::load_from_colour(glm::vec3 colour, const std:
     return tex;
 }
 
-void benzene::Model::load_mesh_data_from_file(const std::string& folder, const std::string& file){
+void benzene::Batch::load_mesh_data_from_file(const std::string& folder, const std::string& file){
     assert(folder[folder.size() - 1] == '/');
     assert(file[0] != '/');
     const std::string file_path = folder + file;
@@ -205,7 +205,7 @@ void benzene::Instance::run(std::function<void(benzene::FrameData&)> functor){
             this->backend->draw_debug_window();
 
         ImGui::Render();
-        this->backend->frame_update(render_models, frame_data);
+        this->backend->frame_update(render_batches, frame_data);
 
         #ifdef BENZENE_OPENGL
         Display::instance().swap_buffers();
@@ -221,9 +221,9 @@ benzene::Instance::~Instance(){
     glfwTerminate();
 }
 
-benzene::ModelId benzene::Instance::add_model(benzene::Model* model){
+benzene::ModelId benzene::Instance::add_batch(benzene::Batch* model){
     auto id = id_gen.next();
-    this->render_models[id] = model;
+    this->render_batches[id] = model;
     return id;
 }
 

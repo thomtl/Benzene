@@ -79,6 +79,16 @@ Backend::Backend([[maybe_unused]] const char* application_name): is_wireframe{fa
 		return;
 	}
 
+	if(!GLAD_GL_ARB_buffer_storage){
+		print("opengl: Need GL_ARB_buffer_storage, which the current driver does not support\n");
+		return;
+	}
+
+	if(!GLAD_GL_ARB_shader_storage_buffer_object){
+		print("opengl: Need GL_ARB_shader_storage_buffer_object, which the current driver does not support\n");
+		return;
+	}
+
 	size_t width = Display::instance().get_width();
 	size_t height = Display::instance().get_height();
 	glViewport(0, 0, width, height);
@@ -113,13 +123,13 @@ void Backend::framebuffer_resize_callback(int width, int height){
 	renderer->framebuffer_resize_callback((size_t)width, (size_t)height);
 }
 
-void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Model*>& models, benzene::FrameData& frame_data){
+void Backend::frame_update(std::unordered_map<benzene::ModelId, benzene::Batch*>& batches, benzene::FrameData& frame_data){
 	auto time_begin = std::chrono::high_resolution_clock::now();
 	auto time = glfwGetTime();
 	frame_data.delta_time = time - last_frame;
 	last_frame = time;
 
-	renderer->draw(models, frame_data);
+	renderer->draw(batches, frame_data);
 	ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
 
 	this->frame_counter++;
