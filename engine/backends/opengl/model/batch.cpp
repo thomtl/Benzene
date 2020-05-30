@@ -126,10 +126,14 @@ Batch::Batch(benzene::Batch& batch, Program& program): batch{&batch}, program{&p
 void Batch::clean(){
     for(auto& mesh : meshes)
         mesh.clean();
+
+    per_instance_buffer.clean();
 }
 
 void Batch::draw() const {
     auto* instance_data = (gl::InstanceData*)per_instance_buffer.map();
+
+    #pragma omp parallel for
     for(size_t i = 0; i < batch->transforms.size(); i++){
         auto& transform = batch->transforms[i];
         auto translate = glm::translate(glm::mat4{1.0f}, transform.pos);
@@ -139,7 +143,7 @@ void Batch::draw() const {
 	    rotate = glm::rotate(rotate, glm::radians(transform.rotation.x), glm::vec3{1.0f, 0.0f, 0.0f});
             
         auto model_matrix = translate * rotate * scale;
-        auto normal_matrix = glm::mat3{glm::transpose(glm::inverse(model_matrix))};
+        auto normal_matrix = glm::transpose(glm::inverse(model_matrix));
 
         instance_data[i].model_matrix = model_matrix;
         instance_data[i].normal_matrix = normal_matrix;

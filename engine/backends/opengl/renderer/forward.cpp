@@ -118,7 +118,7 @@ ForwardRenderer::ForwardRenderer(int width, int height): main_program{} {
 
 	main_program.compile();
 
-	main_program.set_uniform("light.position", glm::vec3{-3.0f, 2.0f, 0.0f});
+	main_program.set_uniform("light.position", glm::vec3{-300.0f, 200.0f, 0.0f});
 	main_program.set_uniform("light.ambient", glm::vec3{0.2f, 0.2f, 0.2f});
 	main_program.set_uniform("light.diffuse", glm::vec3{0.5f, 0.5f, 0.5f});
 	main_program.set_uniform("light.specular", glm::vec3{1.0f, 1.0f, 1.0f});
